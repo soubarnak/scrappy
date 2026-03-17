@@ -66,7 +66,7 @@ Name: "startmenuicon"; Description: "Add to &Start Menu";          GroupDescript
 [Files]
 ; Main app: entire PyInstaller output folder.
 ; Includes Python runtime, all packages, React build, and Playwright Chromium.
-Source: "dist\GoogleMapsScraper\*"; \
+Source: "dist\Scrappy\*"; \
     DestDir: "{app}"; \
     Flags: ignoreversion recursesubdirs createallsubdirs
 

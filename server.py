@@ -180,9 +180,10 @@ else:
 
 
 # ── Excel export ──────────────────────────────────────────────────────────────
-_COLS      = ["Name", "Address", "Category", "Phone", "Website", "Email", "Query"]
+_COLS      = ["Name", "Address", "Category", "Phone", "Website", "Email", "Rating", "Reviews", "Query"]
 _COL_WIDTH = {"Name": 28, "Address": 38, "Category": 18,
-               "Phone": 16, "Website": 32, "Email": 28, "Query": 22}
+               "Phone": 16, "Website": 32, "Email": 28,
+               "Rating": 10, "Reviews": 12, "Query": 22}
 
 
 class ExportRequest(BaseModel):

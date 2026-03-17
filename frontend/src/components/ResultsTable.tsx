@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import {
   ArrowUpDown, ArrowUp, ArrowDown,
-  Copy, ExternalLink, Phone, Mail, MapPin, Tag,
+  Copy, ExternalLink, Phone, Mail, MapPin, Tag, Star,
 } from "lucide-react";
 import { Input }  from "@/components/ui/input";
 import { Badge }  from "@/components/ui/badge";
@@ -15,6 +15,8 @@ export interface ResultRow {
   Phone:    string;
   Website:  string;
   Email:    string;
+  Rating:   string;
+  Reviews:  string;
   Query:    string;
 }
 
@@ -27,13 +29,15 @@ interface ResultsTableProps {
 }
 
 const COLS: { key: Col; label: string; icon: React.ReactNode; width: string }[] = [
-  { key: "Name",     label: "Name",     icon: <MapPin className="size-3" />,     width: "min-w-[180px] max-w-[220px]" },
-  { key: "Address",  label: "Address",  icon: <MapPin className="size-3" />,     width: "min-w-[200px] max-w-[280px]" },
-  { key: "Category", label: "Category", icon: <Tag    className="size-3" />,     width: "min-w-[120px] max-w-[160px]" },
-  { key: "Phone",    label: "Phone",    icon: <Phone  className="size-3" />,     width: "min-w-[130px] max-w-[160px]" },
+  { key: "Name",     label: "Name",     icon: <MapPin className="size-3" />,       width: "min-w-[180px] max-w-[220px]" },
+  { key: "Address",  label: "Address",  icon: <MapPin className="size-3" />,       width: "min-w-[200px] max-w-[280px]" },
+  { key: "Category", label: "Category", icon: <Tag    className="size-3" />,       width: "min-w-[120px] max-w-[160px]" },
+  { key: "Rating",   label: "Rating",   icon: <Star   className="size-3" />,       width: "min-w-[80px]  max-w-[100px]" },
+  { key: "Reviews",  label: "Reviews",  icon: <Star   className="size-3" />,       width: "min-w-[90px]  max-w-[110px]" },
+  { key: "Phone",    label: "Phone",    icon: <Phone  className="size-3" />,       width: "min-w-[130px] max-w-[160px]" },
   { key: "Website",  label: "Website",  icon: <ExternalLink className="size-3" />, width: "min-w-[160px] max-w-[220px]" },
-  { key: "Email",    label: "Email",    icon: <Mail   className="size-3" />,     width: "min-w-[160px] max-w-[220px]" },
-  { key: "Query",    label: "Query",    icon: <Tag    className="size-3" />,     width: "min-w-[140px] max-w-[180px]" },
+  { key: "Email",    label: "Email",    icon: <Mail   className="size-3" />,       width: "min-w-[160px] max-w-[220px]" },
+  { key: "Query",    label: "Query",    icon: <Tag    className="size-3" />,       width: "min-w-[140px] max-w-[180px]" },
 ];
 
 export function ResultsTable({ rows, isRunning }: ResultsTableProps) {
@@ -230,6 +234,25 @@ function TableRow({
       <Cell id={`${index}-Category`} text={row.Category} copied={copied} onCopy={onCopy}>
         {row.Category ? (
           <Badge variant="secondary" className="text-[10px]">{row.Category}</Badge>
+        ) : <span className="text-muted-foreground">—</span>}
+      </Cell>
+
+      {/* Rating */}
+      <Cell id={`${index}-Rating`} text={row.Rating} copied={copied} onCopy={onCopy}>
+        {row.Rating ? (
+          <span className="flex items-center gap-1 text-xs font-semibold text-warning">
+            <Star className="size-3 fill-warning text-warning" />
+            {row.Rating}
+          </span>
+        ) : <span className="text-muted-foreground">—</span>}
+      </Cell>
+
+      {/* Reviews */}
+      <Cell id={`${index}-Reviews`} text={row.Reviews} copied={copied} onCopy={onCopy}>
+        {row.Reviews ? (
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {Number(row.Reviews).toLocaleString()}
+          </span>
         ) : <span className="text-muted-foreground">—</span>}
       </Cell>
 

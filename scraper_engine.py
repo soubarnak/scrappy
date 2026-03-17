@@ -22,7 +22,7 @@ from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 MAPS_SEARCH_URL = "https://www.google.com/maps/search/"
-COLUMNS = ["Name", "Address", "Category", "Phone", "Website", "Email", "Query"]
+COLUMNS = ["Name", "Address", "Category", "Phone", "Website", "Email", "Rating", "Reviews", "Query"]
 
 _END_PHRASES = [
     "You've reached the end of the list",
@@ -243,6 +243,43 @@ class ScraperEngine:
                     break
             except Exception:
                 pass
+
+        # Rating & Reviews ─────────────────────────────────────────────────────
+        try:
+            # Rating: Google Maps puts the numeric value in an aria-label like "4.5 stars"
+            for sel in ['[aria-label$=" stars"]', '[aria-label*=" stars"]']:
+                el = page.query_selector(sel)
+                if el:
+                    label = el.get_attribute("aria-label") or ""
+                    parts = label.lower().split(" star")
+                    if parts:
+                        candidate = parts[0].strip()
+                        try:
+                            val = float(candidate)
+                            if 1.0 <= val <= 5.0:
+                                data["Rating"] = str(val)
+                                break
+                        except ValueError:
+                            pass
+        except Exception:
+            pass
+
+        try:
+            # Reviews: aria-label like "1,234 reviews" or "1,234 Google reviews"
+            for sel in ['[aria-label$=" reviews"]', '[aria-label*=" reviews"]',
+                        '[aria-label$=" review"]',  '[aria-label*=" review"]']:
+                el = page.query_selector(sel)
+                if el:
+                    label = el.get_attribute("aria-label") or ""
+                    lbl_lower = label.lower()
+                    if "review" in lbl_lower:
+                        count = lbl_lower.split(" review")[0].strip()
+                        count = count.replace(",", "")
+                        if count.isdigit():
+                            data["Reviews"] = count
+                            break
+        except Exception:
+            pass
 
         # Address, Phone, Website via data-item-id ─────────────────────────────
         try:

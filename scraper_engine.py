@@ -49,6 +49,7 @@ class ScraperEngine:
         self,
         *,
         headless: bool = True,
+        phone_only: bool = False,
         email_extractor=None,
         on_result:   ResultCB   = None,
         on_status:   StatusCB   = None,
@@ -56,6 +57,7 @@ class ScraperEngine:
         on_complete: CompleteCB = None,
     ):
         self.headless        = headless
+        self.phone_only      = phone_only
         self.email_extractor = email_extractor
         self.on_result       = on_result   or (lambda d: None)
         self.on_status       = on_status   or (lambda m, l: None)
@@ -131,6 +133,8 @@ class ScraperEngine:
                         self.on_progress(j + 1, len(urls), query)
                         data = self._extract(page, url, query)
                         if data:
+                            if self.phone_only and not data.get("Phone"):
+                                continue
                             total_found += 1
                             self.on_result(data)
                         self._sleep(0.6, 1.4)

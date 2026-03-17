@@ -1,7 +1,7 @@
 import React from "react";
 import {
   MapPin, Play, Square, Download, Trash2,
-  Globe, Mail, Monitor, ChevronRight,
+  Globe, Mail, Monitor, Phone, ChevronRight,
 } from "lucide-react";
 import { Button }   from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,6 +23,8 @@ interface SidebarProps {
   onHeadlessChange: (v: boolean) => void;
   extractEmails: boolean;
   onExtractEmailsChange: (v: boolean) => void;
+  phoneOnly:     boolean;
+  onPhoneOnlyChange: (v: boolean) => void;
   isRunning:     boolean;
   onStart:       () => void;
   onStop:        () => void;
@@ -36,6 +38,7 @@ export function Sidebar({
   queries, onQueriesChange,
   headless, onHeadlessChange,
   extractEmails, onExtractEmailsChange,
+  phoneOnly, onPhoneOnlyChange,
   isRunning, onStart, onStop, onExport, onClear,
   stats, canExport,
 }: SidebarProps) {
@@ -108,6 +111,15 @@ export function Sidebar({
             description="Visits websites (~8s per place)"
             checked={extractEmails}
             onCheckedChange={onExtractEmailsChange}
+            disabled={isRunning}
+          />
+
+          <ToggleRow
+            icon={<Phone className="size-4 text-muted-foreground" />}
+            label="Phone numbers only"
+            description="Skip leads without a phone"
+            checked={phoneOnly}
+            onCheckedChange={onPhoneOnlyChange}
             disabled={isRunning}
           />
         </section>

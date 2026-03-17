@@ -119,7 +119,8 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                         EmailExtractor() if opts.get("extractEmails") else None
                     )
                     _active_scraper = ScraperEngine(
-                        headless      = bool(opts.get("headless", False)),
+                        headless        = bool(opts.get("headless", False)),
+                        phone_only      = bool(opts.get("phoneOnly", False)),
                         email_extractor = email_ext,
                         on_result     = _cb_result,
                         on_status     = _cb_status,

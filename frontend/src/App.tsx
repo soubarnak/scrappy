@@ -25,6 +25,7 @@ export default function App() {
   const [queries,       setQueries]       = useState("IT Companies in Koramangala\nIT Companies in Whitefield");
   const [headless,      setHeadless]      = useState(false);
   const [extractEmails, setExtractEmails] = useState(false);
+  const [phoneOnly,     setPhoneOnly]     = useState(false);
 
   // ── State ─────────────────────────────────────────────────────────────────
   const [isRunning, setIsRunning] = useState(false);
@@ -111,9 +112,9 @@ export default function App() {
     wsRef.current.send(JSON.stringify({
       type: "start",
       queries: queryList,
-      options: { headless, extractEmails },
+      options: { headless, extractEmails, phoneOnly },
     }));
-  }, [queries, headless, extractEmails]);
+  }, [queries, headless, extractEmails, phoneOnly]);
 
   const handleStop = useCallback(() => {
     wsRef.current?.send(JSON.stringify({ type: "stop" }));
@@ -172,6 +173,8 @@ export default function App() {
         onHeadlessChange={setHeadless}
         extractEmails={extractEmails}
         onExtractEmailsChange={setExtractEmails}
+        phoneOnly={phoneOnly}
+        onPhoneOnlyChange={setPhoneOnly}
         isRunning={isRunning}
         onStart={handleStart}
         onStop={handleStop}

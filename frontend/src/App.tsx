@@ -139,24 +139,21 @@ export default function App() {
     setStatus({ message: "Stop signal sent…", level: "warning" });
   }, []);
 
-  // Export: GET /export — server reads its own result store, no large POST body
+  // Export: server saves to ~/Downloads and opens with default app (no browser download needed)
   const handleExport = useCallback(async () => {
     if (rows.length === 0) return;
     try {
-      const resp = await fetch("/export");
+      const resp = await fetch("/export-open");
       if (!resp.ok) throw new Error("HTTP " + resp.status);
-      const blob = await resp.blob();
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      a.href     = url;
-      a.download = "scrappy_" + Date.now() + ".xlsx";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setStatus({ message: "Exported " + rows.length + " records to Excel.", level: "success" });
-    } catch {
-      setStatus({ message: "Export failed — check server.", level: "error" });
+      const json = await resp.json() as { status: string; message?: string; path?: string; records?: number };
+      if (json.status === "ok") {
+        const name = json.path ? json.path.split(/[\\/]/).pop() : "file";
+        setStatus({ message: "Saved " + (json.records ?? rows.length) + " records → " + name, level: "success" });
+      } else {
+        setStatus({ message: json.message ?? "Export failed.", level: "error" });
+      }
+    } catch (err) {
+      setStatus({ message: "Export failed: " + String(err), level: "error" });
     }
   }, [rows.length]);
 

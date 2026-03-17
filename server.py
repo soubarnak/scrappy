@@ -14,6 +14,8 @@ __version__   = "2.0"
 import asyncio
 import io
 import json
+import os
+import subprocess
 import sys
 import threading
 from datetime import datetime
@@ -203,12 +205,8 @@ async def websocket_endpoint(ws: WebSocket) -> None:
             pass
 
 
-# ── Excel export (GET — reads server-side store, no large POST body) ──────────
-@app.get("/export")
-async def export_excel() -> StreamingResponse:
-    with _result_lock:
-        rows_snapshot = list(_result_store)   # copy under lock, release immediately
-
+# ── Shared Excel builder ──────────────────────────────────────────────────────
+def _build_workbook(rows_snapshot: list) -> openpyxl.Workbook:
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Scrappy Data"
@@ -255,6 +253,60 @@ async def export_excel() -> StreamingResponse:
     ws2.column_dimensions["A"].width = 16
     ws2.column_dimensions["B"].width = 30
 
+    return wb
+
+
+# ── Excel export: save to disk + open (desktop app — no browser download) ─────
+@app.get("/export-open")
+async def export_open() -> dict:
+    """
+    Save the Excel file to the user's Downloads folder (or next to the exe
+    if Downloads is unavailable) and open it with the OS default application.
+    Returns JSON so the frontend can show a success/error message.
+    """
+    with _result_lock:
+        rows_snapshot = list(_result_store)
+
+    if not rows_snapshot:
+        return {"status": "error", "message": "No data to export."}
+
+    ts       = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = "scrappy_%s.xlsx" % ts
+
+    # Prefer ~/Downloads; fall back to the executable's directory
+    downloads = Path.home() / "Downloads"
+    if not downloads.exists():
+        downloads = Path(sys.executable).parent if getattr(sys, "frozen", False) \
+                    else Path(__file__).parent
+    out_path = downloads / filename
+
+    try:
+        wb = _build_workbook(rows_snapshot)
+        wb.save(str(out_path))
+    except Exception as exc:
+        return {"status": "error", "message": "Failed to save file: %s" % exc}
+
+    # Open the file with the OS default app (Excel on Windows)
+    try:
+        if sys.platform == "win32":
+            os.startfile(str(out_path))           # type: ignore[attr-defined]
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", str(out_path)])
+        else:
+            subprocess.Popen(["xdg-open", str(out_path)])
+    except Exception:
+        pass  # opening failed but file was saved — still report success
+
+    return {"status": "ok", "path": str(out_path), "records": len(rows_snapshot)}
+
+
+# ── Excel export (streaming — kept for browser / dev usage) ───────────────────
+@app.get("/export")
+async def export_excel() -> StreamingResponse:
+    with _result_lock:
+        rows_snapshot = list(_result_store)
+
+    wb  = _build_workbook(rows_snapshot)
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)

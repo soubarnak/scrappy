@@ -27,7 +27,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn
 import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
 
 # NOTE: scraper_engine and email_extractor are imported LAZILY inside the
@@ -191,45 +191,46 @@ class ExportRequest(BaseModel):
     rows: List[dict]
 
 
+_NUM_COLS = {"Reviews"}   # columns stored as integers in Excel
+
 @app.post("/export")
 async def export_excel(req: ExportRequest) -> StreamingResponse:
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "Google Maps Data"
+    ws.title = "Scrappy Data"
 
-    hdr_fill  = PatternFill("solid", fgColor="6E56CF")
-    hdr_font  = Font(name="Calibri", bold=True, color="FFFFFF", size=11)
+    hdr_font  = Font(name="Calibri", bold=True, size=11)
     hdr_align = Alignment(horizontal="center", vertical="center")
-    alt_fill  = PatternFill("solid", fgColor="1E1E3A")
-    thin_border = Border(
-        left   = Side(style="thin", color="303052"),
-        right  = Side(style="thin", color="303052"),
-        top    = Side(style="thin", color="303052"),
-        bottom = Side(style="thin", color="303052"),
-    )
 
     for ci, col in enumerate(_COLS, 1):
         cell = ws.cell(row=1, column=ci, value=col)
         cell.font      = hdr_font
-        cell.fill      = hdr_fill
         cell.alignment = hdr_align
-        cell.border    = thin_border
         ws.column_dimensions[get_column_letter(ci)].width = _COL_WIDTH.get(col, 20)
 
     for ri, row in enumerate(req.rows, 2):
         for ci, col in enumerate(_COLS, 1):
-            cell = ws.cell(row=ri, column=ci, value=row.get(col, ""))
-            cell.border    = thin_border
+            raw = row.get(col, "")
+            # Store numeric columns as actual numbers so Excel can sort/sum them
+            if col in _NUM_COLS and raw:
+                try:
+                    raw = int(raw)
+                except (ValueError, TypeError):
+                    pass
+            elif col == "Rating" and raw:
+                try:
+                    raw = float(raw)
+                except (ValueError, TypeError):
+                    pass
+            cell = ws.cell(row=ri, column=ci, value=raw)
             cell.alignment = Alignment(vertical="center")
-            if ri % 2 == 0:
-                cell.fill = alt_fill
 
     ws.freeze_panes = "A2"
     ws.auto_filter.ref = f"A1:{get_column_letter(len(_COLS))}{len(req.rows) + 1}"
     ws.row_dimensions[1].height = 22
 
     ws2 = wb.create_sheet("Summary")
-    ws2["A1"] = "Google Maps Scraper — Export Summary"
+    ws2["A1"] = "Scrappy — Export Summary"
     ws2["A1"].font = Font(bold=True, size=13)
     ws2["A3"] = "Author";    ws2["B3"] = "Soubarna Karmakar"
     ws2["A4"] = "Generated"; ws2["B4"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

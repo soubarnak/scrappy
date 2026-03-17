@@ -53,7 +53,7 @@ export function Sidebar({
           </div>
           <div>
             <h1 className="text-base font-bold leading-tight text-foreground">
-              Maps Scraper
+              Scrappy
             </h1>
             <p className="text-[10px] font-medium text-primary/80 tracking-wide uppercase">
               Google Maps Extractor
@@ -190,7 +190,7 @@ export function Sidebar({
       {/* ── Footer ─────────────────────────────────────────────────────── */}
       <div className="border-t border-border px-4 py-3">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] text-muted-foreground">v2.0 · No API required</span>
+          <span className="text-[10px] text-muted-foreground">Scrappy v2.0 · No API required</span>
           <Badge variant="muted" className="text-[10px]">
             <Globe className="mr-1 size-2.5" />
             Google Maps

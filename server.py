@@ -191,7 +191,8 @@ class ExportRequest(BaseModel):
     rows: List[dict]
 
 
-_NUM_COLS = {"Reviews"}   # columns stored as integers in Excel
+_NUM_COLS    = {"Reviews"}   # stored as int in Excel
+_PHONE_COLS  = {"Phone"}     # stored as text with @ format (preserves + and leading zeros)
 
 @app.post("/export")
 async def export_excel(req: ExportRequest) -> StreamingResponse:
@@ -224,6 +225,8 @@ async def export_excel(req: ExportRequest) -> StreamingResponse:
                     pass
             cell = ws.cell(row=ri, column=ci, value=raw)
             cell.alignment = Alignment(vertical="center")
+            if col in _PHONE_COLS:
+                cell.number_format = "@"   # text format — keeps +, leading zeros
 
     ws.freeze_panes = "A2"
     ws.auto_filter.ref = f"A1:{get_column_letter(len(_COLS))}{len(req.rows) + 1}"

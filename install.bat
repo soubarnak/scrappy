@@ -34,16 +34,13 @@ echo  [1/5] Installing core Python packages...
 pip install -r requirements.txt --quiet --upgrade
 if errorlevel 1 ( echo  [ERROR] pip install failed. & pause & exit /b 1 )
 
-:: ── pywebview is optional (native window instead of browser tab) ─────────────
-:: Requires .NET SDK and only supports Python 3.10-3.12 on Windows.
-:: If it fails we skip it silently — the app opens in your default browser instead.
-echo  [2/5] Trying pywebview (optional native window)...
-pip install pywebview --quiet 2>nul
+:: ── pywebview (native desktop window via Edge WebView2 — no .NET needed) ──────
+echo  [2/5] Installing pywebview + comtypes (native window)...
+pip install pywebview comtypes --quiet
 if errorlevel 1 (
-    echo  [INFO] pywebview skipped ^(Python 3.14 not yet supported^).
-    echo         App will open in your default browser instead. This is fine!
+    echo  [INFO] pywebview skipped — app will open in your default browser instead.
 ) else (
-    echo  [OK] pywebview installed — app will open in a native window.
+    echo  [OK] pywebview installed — app will open as a native desktop window.
 )
 
 echo  [3/5] Installing Playwright Chromium...

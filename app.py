@@ -94,7 +94,7 @@ def _show_error_and_exit(title: str, message: str) -> None:
         root = tk.Tk()
         root.withdraw()
         messagebox.showerror(
-            f"Google Maps Scraper — {title}",
+            f"Scrappy — {title}",
             message,
         )
         root.destroy()
@@ -111,7 +111,7 @@ _wait_for_server()
 def _open_browser_fallback() -> None:
     import webbrowser
     webbrowser.open(URL)
-    print(f"\n  ✓ Google Maps Scraper — by Soubarna Karmakar")
+    print(f"\n  Scrappy — by Soubarna Karmakar")
     print(f"  Running at: {URL}")
     print("  Close this window or press Ctrl+C to stop.\n")
     try:
@@ -125,7 +125,7 @@ try:
     import webview                               # type: ignore[import]
 
     webview.create_window(
-        title       = "Google Maps Scraper — by Soubarna Karmakar",
+        title       = "Scrappy — by Soubarna Karmakar",
         url         = URL,
         width       = 1280,
         height      = 820,
@@ -133,13 +133,16 @@ try:
         resizable   = True,
         text_select = True,
     )
-    webview.start(debug=False)
+    # gui='edgechromium' uses Microsoft Edge WebView2 (built into Windows 10/11).
+    # This does NOT require pythonnet or .NET SDK — works on Python 3.14+.
+    webview.start(gui="edgechromium", debug=False)
 
 except ImportError:
-    # pywebview not installed (Python 3.13+ / no .NET SDK) — browser fallback
+    # pywebview not installed — browser fallback
     _open_browser_fallback()
 
 except Exception as exc:
-    # pywebview crashed for another reason — still try the browser
+    # edgechromium not available (older Windows / WebView2 not installed)
+    # Fall back to browser silently
     print(f"[pywebview error] {exc} — falling back to browser", file=sys.stderr)
     _open_browser_fallback()

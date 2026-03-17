@@ -1,0 +1,118 @@
+/* ── Google Fonts ────────────────────────────────────────────────────────── */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Cosmic Night — Dark Theme (shadcn/ui CSS variables) ─────────────────── */
+@layer base {
+  :root {
+    /* light (not used — app is always dark) */
+    --background:         240 30% 97%;
+    --foreground:         240 35% 22%;
+    --card:               0 0% 100%;
+    --card-foreground:    240 35% 22%;
+    --popover:            0 0% 100%;
+    --popover-foreground: 240 35% 22%;
+    --primary:            258 56% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary:          248 100% 94%;
+    --secondary-foreground:252 33% 38%;
+    --muted:              240 33% 97%;
+    --muted-foreground:   240 16% 54%;
+    --accent:             220 100% 93%;
+    --accent-foreground:  240 35% 22%;
+    --destructive:        350 100% 66%;
+    --destructive-foreground:0 0% 100%;
+    --border:             240 33% 88%;
+    --input:              240 33% 88%;
+    --ring:               258 56% 58%;
+    --success:            142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning:            38 92% 50%;
+    --warning-foreground: 0 0% 0%;
+    --radius:             0.5rem;
+  }
+
+  .dark {
+    /* Cosmic Night dark palette */
+    --background:         240 26% 8%;     /* #0f0f1a */
+    --foreground:         240 33% 92%;    /* #e2e2f5 */
+    --card:               240 26% 14%;   /* #1a1a2e */
+    --card-foreground:    240 33% 92%;
+    --popover:            240 26% 14%;
+    --popover-foreground: 240 33% 92%;
+    --primary:            258 100% 78%;   /* #a48fff */
+    --primary-foreground: 240 26% 8%;
+    --secondary:          244 31% 25%;   /* #2d2b55 */
+    --secondary-foreground:248 100% 88%;
+    --muted:              240 50% 20%;   /* #222244 */
+    --muted-foreground:   240 25% 63%;   /* #a0a0c0 */
+    --accent:             240 50% 28%;   /* #303060 */
+    --accent-foreground:  240 33% 92%;
+    --destructive:        350 100% 66%;  /* #ff5470 */
+    --destructive-foreground:0 0% 100%;
+    --border:             240 26% 25%;   /* #303052 */
+    --input:              240 26% 25%;
+    --ring:               258 100% 78%;
+    --success:            142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning:            38 92% 50%;
+    --warning-foreground: 0 0% 0%;
+    --radius:             0.5rem;
+  }
+}
+
+/* ── Base resets ─────────────────────────────────────────────────────────── */
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    @apply dark;          /* always dark mode */
+    font-family: "Inter", system-ui, sans-serif;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    overflow: hidden;     /* the app is fullscreen — no outer scroll */
+    user-select: none;
+  }
+
+  /* Allow text selection inside the results table */
+  .selectable { user-select: text; }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar       { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: hsl(var(--muted)); }
+  ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary) / 0.6); }
+}
+
+/* ── Utility classes ─────────────────────────────────────────────────────── */
+@layer utilities {
+  .gradient-header {
+    background: linear-gradient(
+      135deg,
+      hsl(258 56% 22%) 0%,
+      hsl(240 26% 12%) 100%
+    );
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.35);
+  }
+
+  .table-row-hover:hover {
+    background: hsl(var(--accent) / 0.5);
+  }
+
+  .stat-card-glow {
+    box-shadow:
+      0 0 0 1px hsl(var(--primary) / 0.2),
+      0 4px 24px hsl(var(--primary) / 0.12);
+  }
+}

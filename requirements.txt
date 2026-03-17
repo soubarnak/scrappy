@@ -1,11 +1,25 @@
-# Google Maps Scraper — Python dependencies
-# Install with:  pip install -r requirements.txt
+# Google Maps Scraper — Python Dependencies
+# Author    : Soubarna Karmakar
+# Copyright : © 2025 Soubarna Karmakar. All rights reserved.
+#
+# Install: pip install -r requirements.txt
 
-customtkinter>=5.2.0
-playwright>=1.40.0
-openpyxl>=3.1.0
-requests>=2.28.0
-beautifulsoup4>=4.12.0
+# ── Web framework + ASGI server ───────────────────────────────────────────────
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+pydantic>=2.7.0
+python-multipart>=0.0.9
 
-# pandas is optional (used internally if available)
-pandas>=2.0.0
+# ── Desktop window (wraps the React UI — no browser bar) ─────────────────────
+pywebview>=5.0.0
+
+# ── Browser automation ────────────────────────────────────────────────────────
+playwright>=1.43.0
+
+# ── Excel export ──────────────────────────────────────────────────────────────
+openpyxl>=3.1.2
+
+# ── Email extraction from websites (optional) ─────────────────────────────────
+requests>=2.31.0
+beautifulsoup4>=4.12.3
+lxml>=5.2.0

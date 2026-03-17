@@ -1,49 +1,57 @@
 @echo off
-title Google Maps Scraper — Installer
+:: Google Maps Scraper — One-click Dev Setup
+:: Author    : Soubarna Karmakar
+:: Copyright : (c) 2025 Soubarna Karmakar. All rights reserved.
+setlocal EnableDelayedExpansion
+title Google Maps Scraper — Setup
 color 0B
+
 echo.
-echo  ============================================
-echo   Google Maps Scraper — Setup
-echo  ============================================
+echo  =====================================================
+echo   Google Maps Scraper v2.0 — Setup
+echo   by Soubarna Karmakar
+echo  =====================================================
 echo.
 
-:: Check Python
+:: ── Python ──────────────────────────────────────────────────────────────────
 python --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo  [ERROR] Python is not installed or not in PATH.
-    echo  Please install Python 3.10+ from https://python.org
-    pause
-    exit /b 1
+if errorlevel 1 (
+    echo  [ERROR] Python not found. Install Python 3.10+ from https://python.org
+    pause & exit /b 1
 )
+echo  [OK] & python --version
 
-echo  [OK] Python found:
-python --version
-echo.
-
-:: Install pip packages
-echo  Installing Python packages...
-pip install -r requirements.txt --quiet
-if %errorlevel% neq 0 (
-    echo  [ERROR] pip install failed. Check your internet connection.
-    pause
-    exit /b 1
+:: ── Node.js ─────────────────────────────────────────────────────────────────
+node --version >nul 2>&1
+if errorlevel 1 (
+    echo  [ERROR] Node.js not found. Install Node.js 18+ from https://nodejs.org
+    pause & exit /b 1
 )
-echo  [OK] Python packages installed.
-echo.
+echo  [OK] Node & node --version
 
-:: Install Playwright Chromium browser
-echo  Installing Playwright Chromium browser...
+echo.
+echo  [1/4] Installing Python packages...
+pip install -r requirements.txt --quiet --upgrade
+if errorlevel 1 ( echo  [ERROR] pip install failed. & pause & exit /b 1 )
+
+echo  [2/4] Installing Playwright Chromium...
 python -m playwright install chromium
-if %errorlevel% neq 0 (
-    echo  [WARNING] Playwright browser install may have failed.
-    echo  Try running manually:  python -m playwright install chromium
-) else (
-    echo  [OK] Playwright Chromium ready.
-)
+if errorlevel 1 ( echo  [WARNING] Chromium install may have failed — try manually later. )
+
+echo  [3/4] Installing frontend npm packages...
+cd frontend
+call npm install --silent
+if errorlevel 1 ( echo  [ERROR] npm install failed. & cd .. & pause & exit /b 1 )
+
+echo  [4/4] Building React UI (shadcn/ui + Cosmic Night theme)...
+call npm run build --silent
+if errorlevel 1 ( echo  [ERROR] npm build failed. & cd .. & pause & exit /b 1 )
+cd ..
 
 echo.
-echo  ============================================
-echo   Setup complete!  Run:  run.bat
-echo  ============================================
+echo  =====================================================
+echo   Setup complete!
+echo   Run the app:  run.bat
+echo  =====================================================
 echo.
 pause

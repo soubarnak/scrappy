@@ -58,18 +58,27 @@ banner "Installing Python dependencies"
 pip3 install -r requirements.txt --quiet --upgrade
 ok "Dependencies installed"
 
+# ── 2. Build React frontend ────────────────────────────────────────────────────
+banner "Building React UI (shadcn/ui + Cosmic Night)"
+command -v node >/dev/null 2>&1 || fail "Node.js not found. Install from https://nodejs.org"
+cd frontend
+npm install --silent
+npm run build --silent
+cd ..
+ok "React build complete (frontend/dist/)"
+
 banner "Installing PyInstaller"
 pip3 install pyinstaller --quiet --upgrade
 PYINST=$(pyinstaller --version)
 ok "PyInstaller $PYINST"
 
-# ── 2. Ensure Playwright Chromium is present (needed for collect_all) ─────────
+# ── 3. Ensure Playwright Chromium is present ───────────────────────────────────
 banner "Installing Playwright Chromium"
 python3 -m playwright install chromium || warn "Browser install incomplete — continuing"
 
-# ── 3. Build the .app bundle ─────────────────────────────────────────────────
+# ── 4. Build the .app bundle ──────────────────────────────────────────────────
 banner "Building .app bundle with PyInstaller"
-pyinstaller scraper_mac.spec --clean --noconfirm
+pyinstaller app.spec --clean --noconfirm
 
 APP_BUNDLE="${DIST_DIR}/${APP_NAME}.app"
 [[ -d "$APP_BUNDLE" ]] || fail ".app bundle not found at $APP_BUNDLE"

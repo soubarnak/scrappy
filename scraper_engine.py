@@ -16,6 +16,7 @@ import re
 import subprocess
 import sys
 import time
+import unicodedata
 from typing import Callable, Optional
 from urllib.parse import quote_plus
 
@@ -233,7 +234,7 @@ class ScraperEngine:
         # Name ─────────────────────────────────────────────────────────────────
         try:
             page.wait_for_selector("h1", timeout=8_000)
-            data["Name"] = (page.inner_text("h1") or "").strip()
+            data["Name"] = self._clean(page.inner_text("h1") or "")
         except PWTimeout:
             return None
         if not data["Name"]:
@@ -244,7 +245,7 @@ class ScraperEngine:
             try:
                 el = page.query_selector(sel)
                 if el:
-                    data["Category"] = (el.inner_text() or "").strip()
+                    data["Category"] = self._clean(el.inner_text() or "")
                     break
             except Exception:
                 pass
@@ -322,7 +323,7 @@ class ScraperEngine:
             items = page.query_selector_all("[data-item-id]")
             for item in items:
                 item_id = item.get_attribute("data-item-id") or ""
-                text    = (item.inner_text() or "").strip().replace("\n", " ")
+                text    = self._clean((item.inner_text() or "").replace("\n", " "))
 
                 if item_id == "address" and not data["Address"]:
                     data["Address"] = text
@@ -399,12 +400,33 @@ class ScraperEngine:
             el = page.query_selector(
                 '[aria-label*="%s"], [data-tooltip*="%s"]' % (label, label)
             )
-            return (el.inner_text() or "").strip() if el else ""
+            return self._clean(el.inner_text() or "") if el else ""
         except Exception:
             return ""
 
     def _status(self, msg: str, level: str = "info"):
         self.on_status(msg, level)
+
+    @staticmethod
+    def _clean(text: str) -> str:
+        """
+        Remove non-printable characters and Unicode symbols/icons that Google
+        Maps injects into its DOM text (e.g. pin icons, private-use chars).
+        Keeps letters, digits, punctuation, and standard whitespace.
+        """
+        # Normalize (e.g. collapse ligatures, half-width forms)
+        text = unicodedata.normalize("NFKC", text)
+        # Drop any character whose Unicode category is:
+        #   Cc (control), Cf (format), Cs (surrogate), Co (private use),
+        #   Cn (unassigned), So (other symbol), Sm (math symbol),
+        #   Sk (modifier symbol) — these are the icon/glyph characters.
+        cleaned = "".join(
+            ch for ch in text
+            if unicodedata.category(ch) not in
+               {"Cc", "Cf", "Cs", "Co", "Cn", "So", "Sm", "Sk"}
+        )
+        # Collapse multiple spaces and strip edges
+        return re.sub(r" {2,}", " ", cleaned).strip()
 
     @staticmethod
     def _sleep(lo: float, hi: float):

@@ -29,7 +29,8 @@
 
 ## 📸 Screenshots
 
-> *(coming soon — run the app and screenshot it)*
+> <img width="1919" height="1028" alt="image" src="https://github.com/user-attachments/assets/5f934bf9-e3c9-4358-b1a6-d36586b64c32" />
+
 
 ---
 

@@ -150,8 +150,10 @@ export default function App() {
       const a    = document.createElement("a");
       a.href     = url;
       a.download = "scrappy_" + Date.now() + ".xlsx";
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
       setStatus({ message: "Exported " + rows.length + " records to Excel.", level: "success" });
     } catch {
       setStatus({ message: "Export failed — check server.", level: "error" });

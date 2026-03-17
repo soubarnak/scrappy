@@ -61,6 +61,9 @@ class EmailExtractor:
         """Return the first credible email found, or empty string."""
         if not _LIBS_OK or not self._session or not url:
             return ""
+        # Ensure the URL has a scheme
+        if not url.startswith("http"):
+            url = "https://" + url
         try:
             resp = self._session.get(
                 url, timeout=self.timeout,

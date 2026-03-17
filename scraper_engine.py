@@ -249,20 +249,21 @@ class ScraperEngine:
             items = page.query_selector_all("[data-item-id]")
             for item in items:
                 item_id = item.get_attribute("data-item-id") or ""
-                text    = (item.inner_text() or "").strip().replace("\n", ", ")
+                text    = (item.inner_text() or "").strip().replace("\n", " ")
 
                 if item_id == "address" and not data["Address"]:
                     data["Address"] = text
 
                 elif item_id.startswith("phone:tel:") and not data["Phone"]:
-                    data["Phone"] = text.split(",")[0]
+                    # The phone number is encoded in the attribute itself
+                    # e.g. data-item-id="phone:tel:+918045678900"
+                    data["Phone"] = item_id.split("phone:tel:")[-1].strip()
 
                 elif item_id == "authority" and not data["Website"]:
                     try:
                         link = item.query_selector("a")
-                        data["Website"] = (
-                            link.get_attribute("href") if link else text
-                        ) or text
+                        href = (link.get_attribute("href") if link else "") or ""
+                        data["Website"] = href or text
                     except Exception:
                         data["Website"] = text
         except Exception:
@@ -271,8 +272,19 @@ class ScraperEngine:
         # Fallback selectors ───────────────────────────────────────────────────
         if not data["Address"]:
             data["Address"] = self._aria_text(page, "Address")
+
+        # Phone fallback: try tel: hyperlink (always present if Google Maps has a number)
         if not data["Phone"]:
-            data["Phone"]   = self._aria_text(page, "Phone")
+            try:
+                tel_el = page.query_selector("a[href^='tel:']")
+                if tel_el:
+                    href = tel_el.get_attribute("href") or ""
+                    data["Phone"] = href.replace("tel:", "").strip()
+            except Exception:
+                pass
+        if not data["Phone"]:
+            data["Phone"] = self._aria_text(page, "Phone")
+
         if not data["Website"]:
             try:
                 el = page.query_selector("a[data-item-id='authority']")
@@ -280,6 +292,10 @@ class ScraperEngine:
                     data["Website"] = el.get_attribute("href") or ""
             except Exception:
                 pass
+
+        # Ensure website has a scheme so email extractor's requests.get() works
+        if data["Website"] and not data["Website"].startswith("http"):
+            data["Website"] = "https://" + data["Website"]
 
         # Email (optional) ─────────────────────────────────────────────────────
         if self.email_extractor and data["Website"]:

@@ -1,16 +1,26 @@
 ; ─────────────────────────────────────────────────────────────────────────────
-; Google Maps Scraper — Inno Setup 6 Script
-; Author:   Soubarna Karmakar
-; Requires: Inno Setup 6  https://jrsoftware.org/isdl.php
-; Usage:    Run build_windows.bat  OR  ISCC installer.iss
+; Scrappy — Inno Setup 6 Script
+; Produces a fully self-contained installer — no Python, Node.js, or internet
+; connection required on the end-user's machine.
+;
+; Bundled in the installer:
+;   - Scrappy executable + all Python packages (PyInstaller bundle)
+;   - React frontend (pre-built, served by FastAPI)
+;   - Playwright Chromium browser (copied by build_windows.bat)
+;   - Microsoft Edge WebView2 bootstrapper (for native desktop window)
+;
+; Author   : Soubarna Karmakar
+; Requires : Inno Setup 6  https://jrsoftware.org/isdl.php
+; Usage    : Run build_windows.bat  OR  ISCC installer.iss
 ; ─────────────────────────────────────────────────────────────────────────────
 
-#define AppName      "Google Maps Scraper"
+#define AppName      "Scrappy"
 #define AppVersion   "2.0"
 #define AppPublisher "Soubarna Karmakar"
 #define AppExe       "GoogleMapsScraper.exe"
-#define AppURL       "https://github.com/soubarnak/google-maps-scraper"
-; ── [Setup] ──────────────────────────────────────────────────────────────────
+#define AppURL       "https://github.com/soubarnak/scrappy"
+
+; ── [Setup] ───────────────────────────────────────────────────────────────────
 [Setup]
 ; Note: {{ escapes a literal { in Inno Setup string values
 AppId={{F8A12B3C-4D5E-6F78-9A0B-1C2D3E4F5A99}
@@ -21,91 +31,111 @@ AppPublisherURL={#AppURL}
 AppSupportURL={#AppURL}
 AppUpdatesURL={#AppURL}
 
-; Installation directory — user can change this in the wizard
+; Installation directory
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 
-; Allow non-admin install (no UAC prompt needed)
+; Allow non-admin install (no UAC prompt)
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 
-; Installer appearance
+; Appearance
 WizardStyle=modern
 SetupIconFile=assets\icon.ico
 
 ; Output
 OutputDir=installer_output
-OutputBaseFilename=GoogleMapsScraper_Setup_v{#AppVersion}
+OutputBaseFilename=Scrappy_Setup_v{#AppVersion}
 Compression=lzma2/max
 SolidCompression=yes
-
-; Splash / sidebar image (optional — must be 164x314 BMP)
-; WizardImageFile=assets\installer_side.bmp
-; WizardSmallImageFile=assets\installer_top.bmp
 
 UninstallDisplayIcon={app}\{#AppExe}
 UninstallDisplayName={#AppName}
 
-; ── [Languages] ──────────────────────────────────────────────────────────────
+; ── [Languages] ───────────────────────────────────────────────────────────────
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 ; ── [Tasks] ───────────────────────────────────────────────────────────────────
 [Tasks]
-Name: "desktopicon";    Description: "Create a &Desktop shortcut";       GroupDescription: "Additional shortcuts:"
-Name: "startmenuicon";  Description: "Add to &Start Menu";               GroupDescription: "Additional shortcuts:"; Flags: checkedonce
+Name: "desktopicon";   Description: "Create a &Desktop shortcut";  GroupDescription: "Additional shortcuts:"
+Name: "startmenuicon"; Description: "Add to &Start Menu";          GroupDescription: "Additional shortcuts:"; Flags: checkedonce
 
 ; ── [Files] ───────────────────────────────────────────────────────────────────
 [Files]
-; Copy the entire PyInstaller output folder into the installation directory
+; Main app: entire PyInstaller output folder.
+; Includes Python runtime, all packages, React build, and Playwright Chromium.
 Source: "dist\GoogleMapsScraper\*"; \
     DestDir: "{app}"; \
     Flags: ignoreversion recursesubdirs createallsubdirs
 
+; Edge WebView2 bootstrapper — run silently only if WebView2 is not installed.
+; Downloaded by build_windows.bat into redist\ (~1.5 MB).
+Source: "redist\MicrosoftEdgeWebview2Setup.exe"; \
+    DestDir: "{tmp}"; \
+    Flags: deleteafterinstall; \
+    Check: NeedsWebView2
+
 ; ── [Icons] ───────────────────────────────────────────────────────────────────
 [Icons]
-; Start Menu
-Name: "{group}\{#AppName}";                   Filename: "{app}\{#AppExe}"; \
-    Tasks: startmenuicon
-Name: "{group}\Uninstall {#AppName}";         Filename: "{uninstallexe}"; \
-    Tasks: startmenuicon
+Name: "{group}\{#AppName}";            Filename: "{app}\{#AppExe}"; Tasks: startmenuicon
+Name: "{group}\Uninstall {#AppName}";  Filename: "{uninstallexe}";  Tasks: startmenuicon
+Name: "{commondesktop}\{#AppName}";    Filename: "{app}\{#AppExe}"; Tasks: desktopicon
 
-; Desktop
-Name: "{commondesktop}\{#AppName}";           Filename: "{app}\{#AppExe}"; \
-    Tasks: desktopicon
-
-; ── [Run] after install ───────────────────────────────────────────────────────
+; ── [Run] ─────────────────────────────────────────────────────────────────────
 [Run]
-; Offer to launch the app immediately after install
+; 1. Silently install Edge WebView2 Runtime if not already present.
+;    Enables the native desktop window (pywebview edgechromium backend).
+Filename: "{tmp}\MicrosoftEdgeWebview2Setup.exe"; \
+    Parameters: "/silent /install"; \
+    StatusMsg: "Installing Microsoft Edge WebView2 Runtime..."; \
+    Flags: waituntilterminated; \
+    Check: NeedsWebView2
+
+; 2. Offer to launch Scrappy right after install finishes.
 Filename: "{app}\{#AppExe}"; \
     Description: "Launch {#AppName} now"; \
     Flags: nowait postinstall skipifsilent
 
 ; ── [UninstallDelete] ─────────────────────────────────────────────────────────
 [UninstallDelete]
-; Remove any Excel exports left in the install folder
-Type: files; Name: "{app}\google_maps_*.xlsx"
+Type: files; Name: "{app}\scrappy_*.xlsx"
 
-; ── [Code] — custom installer logic ──────────────────────────────────────────
+; ── [Code] ────────────────────────────────────────────────────────────────────
 [Code]
 
-{ ─── Show a pre-install info page about Chromium download ─── }
-function InitializeSetup(): Boolean;
+{ Check whether Edge WebView2 Runtime is already installed.
+  WebView2 records its version in the registry at one of two paths. }
+function IsWebView2Installed(): Boolean;
 var
-  Res: Integer;
+  Version: String;
 begin
-  Result := True;
+  Result := False;
 
-  { Warn the user that Chromium (~120 MB) will be downloaded on first launch }
-  Res := MsgBox(
-    'Welcome to Google Maps Scraper v{#AppVersion} Setup.' + #13#10 + #13#10 +
-    'On the FIRST launch the app will automatically download' + #13#10 +
-    'the Chromium browser (~120 MB). An internet connection' + #13#10 +
-    'is required for that one-time setup.' + #13#10 + #13#10 +
-    'Continue with installation?',
-    mbConfirmation, MB_YESNO);
+  { Per-user (HKCU) }
+  if RegQueryStringValue(HKCU,
+      'Software\Microsoft\EdgeUpdate\ClientState\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
+      'pv', Version) then
+    if (Version <> '') and (Version <> '0.0.0.0') then
+    begin
+      Result := True;
+      Exit;
+    end;
 
-  if Res <> IDYES then
-    Result := False;
+  { Machine-wide 32-bit view (HKLM) }
+  if RegQueryStringValue(HKLM,
+      'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\ClientState\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
+      'pv', Version) then
+    if (Version <> '') and (Version <> '0.0.0.0') then
+    begin
+      Result := True;
+      Exit;
+    end;
+end;
+
+{ Returns True when the WebView2 installer should run }
+function NeedsWebView2(): Boolean;
+begin
+  Result := not IsWebView2Installed();
 end;

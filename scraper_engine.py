@@ -412,14 +412,35 @@ class ScraperEngine:
 
     @staticmethod
     def _ensure_browser():
-        """Download Chromium if not present (PyInstaller-safe)."""
+        """
+        Locate Chromium and ensure it is available.
+
+        When running as a PyInstaller bundle (frozen exe):
+          - The build script copies the Playwright Chromium browser into
+            <exe_dir>/_playwright_browsers/
+          - We set PLAYWRIGHT_BROWSERS_PATH so Playwright finds it there.
+          - No internet connection required if the browser was bundled.
+
+        When running from source (development):
+          - Uses the normal ~/.cache/ms-playwright location.
+          - Downloads Chromium on first run if not present.
+        """
         import os
+        from pathlib import Path
+
+        # Point Playwright to the bundled browsers when frozen
+        if getattr(sys, "frozen", False):
+            browsers_dir = Path(sys.executable).parent / "_playwright_browsers"
+            if browsers_dir.exists():
+                os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(browsers_dir)
+
         try:
             with sync_playwright() as pw:
                 path = pw.chromium.executable_path
                 if not path or not os.path.exists(path):
                     raise FileNotFoundError("Chromium not found")
         except Exception:
+            # Browser not found — download it (requires internet)
             subprocess.run(
                 [sys.executable, "-m", "playwright", "install", "chromium"],
                 check=True,

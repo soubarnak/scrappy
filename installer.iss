@@ -10,11 +10,10 @@
 #define AppPublisher "Soubarna Karmakar"
 #define AppExe       "GoogleMapsScraper.exe"
 #define AppURL       "https://github.com/soubarnak/google-maps-scraper"
-#define AppId        "{F8A12B3C-4D5E-6F78-9A0B-1C2D3E4F5A99}"
-
 ; ── [Setup] ──────────────────────────────────────────────────────────────────
 [Setup]
-AppId={#AppId}
+; Note: {{ escapes a literal { in Inno Setup string values
+AppId={{F8A12B3C-4D5E-6F78-9A0B-1C2D3E4F5A99}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher={#AppPublisher}

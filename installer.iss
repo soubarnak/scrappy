@@ -17,7 +17,7 @@
 #define AppName      "Scrappy"
 #define AppVersion   "2.0"
 #define AppPublisher "Soubarna Karmakar"
-#define AppExe       "GoogleMapsScraper.exe"
+#define AppExe       "Scrappy.exe"
 #define AppURL       "https://github.com/soubarnak/scrappy"
 
 ; ── [Setup] ───────────────────────────────────────────────────────────────────

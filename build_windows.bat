@@ -72,7 +72,7 @@ echo  [4/6] Building standalone executable with PyInstaller...
 echo        (First run takes 5-10 min — please wait)
 pyinstaller app.spec --clean --noconfirm
 if errorlevel 1 ( echo [ERROR] PyInstaller failed. & goto :fail )
-echo  [OK] PyInstaller complete — dist\GoogleMapsScraper\
+echo  [OK] PyInstaller complete — dist\Scrappy\
 
 :: ── Step 5: Copy Playwright Chromium into the dist folder ─────────────────────
 ::
@@ -83,7 +83,7 @@ echo  [OK] PyInstaller complete — dist\GoogleMapsScraper\
 echo.
 echo  [5/6] Bundling Playwright Chromium into dist\...
 set "PW_CACHE=%LOCALAPPDATA%\ms-playwright"
-set "PW_DEST=dist\GoogleMapsScraper\_playwright_browsers"
+set "PW_DEST=dist\Scrappy\_playwright_browsers"
 mkdir "%PW_DEST%" 2>nul
 
 set "CHROMIUM_FOUND=0"
@@ -127,7 +127,7 @@ if not exist "redist\MicrosoftEdgeWebview2Setup.exe" (
 echo.
 echo  ============================================================
 echo   Executable ready:
-echo     dist\GoogleMapsScraper\GoogleMapsScraper.exe
+echo     dist\Scrappy\Scrappy.exe
 echo  ============================================================
 
 :: ── Step 6: Inno Setup installer ──────────────────────────────────────────────

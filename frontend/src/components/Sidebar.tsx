@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 interface Stats {
   total:   number;
   website: number;
-  email:   number;
+  phone:   number;
 }
 
 interface SidebarProps {
@@ -147,7 +147,7 @@ export function Sidebar({
           <div className="grid grid-cols-3 gap-2">
             <StatBox label="Found"   value={stats.total}   color="primary" />
             <StatBox label="Website" value={stats.website} color="success" />
-            <StatBox label="Email"   value={stats.email}   color="warning" />
+            <StatBox label="Numbers" value={stats.phone}   color="warning" />
           </div>
         </section>
 

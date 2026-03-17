@@ -170,7 +170,7 @@ export default function App() {
   const stats = {
     total:   rows.length,
     website: rows.filter(r => r.Website).length,
-    email:   rows.filter(r => r.Email && r.Email !== "N/A").length,
+    phone:   rows.filter(r => r.Phone).length,
   };
 
   // ── Render ────────────────────────────────────────────────────────────────

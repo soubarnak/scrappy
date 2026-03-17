@@ -345,7 +345,9 @@ else:
 
 # ── Standalone entry (dev mode: python server.py) ─────────────────────────────
 def start_server(host: str = "127.0.0.1", port: int = 7410) -> None:
-    uvicorn.run(app, host=host, port=port, log_level="warning")
+    # log_config=None disables uvicorn's default logging setup which references
+    # a 'default' formatter that is unavailable in PyInstaller frozen bundles.
+    uvicorn.run(app, host=host, port=port, log_level="warning", log_config=None)
 
 
 if __name__ == "__main__":

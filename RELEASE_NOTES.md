@@ -1,170 +1,126 @@
-# 🗺️ Google Maps Scraper — Release Notes
+# Scrappy — Release Notes
 
 ---
 
-## v2.0 — 17 March 2025
+## v2.0.1 — 17 March 2026
 
 > **Author:** Soubarna Karmakar
-> **Platform:** Windows 10/11 · macOS 12+
+> **Platform:** Windows 10/11
 > **License:** Proprietary — free to use, not open source
 
 ---
 
-### 🎉 What's New in v2.0
+### Bug Fixes & Improvements
 
-This is the first public release of **Google Maps Scraper**, a desktop application that
-extracts business data from Google Maps — with no API key, no login, and no usage limits.
+#### Export to Excel
+- Fixed a crash where `openpyxl.Workbook.close()` was called after saving — this method does not exist in most openpyxl versions and caused the export endpoint to return HTTP 500.
+- Changed export strategy: instead of streaming the file through the browser (blocked by the native window), the server now saves the `.xlsx` directly to your **Downloads folder** and opens it automatically in Excel. The status bar confirms the filename.
+
+#### Scraped Data Quality
+- All extracted text fields (Name, Address, Category) are now sanitised to remove Unicode icon/symbol characters that Google Maps injects into its DOM — these appeared as stray icons in the Address column and in exported files.
+- Text is normalised to NFKC and all control, format, private-use, and symbol Unicode categories are stripped before display and export.
+
+#### Installer & Executable
+- Renamed the executable from `GoogleMapsScraper.exe` to **`Scrappy.exe`** — it now appears correctly in Task Manager, Services, and Windows Explorer.
+- Fixed the Inno Setup installer source path (`dist\Scrappy\*`) so the correct executable is packaged.
+- Fixed a startup crash on new machines: uvicorn raised `ValueError: Unable to configure formatter 'default'` when launched from a PyInstaller bundle. Resolved by passing `log_config=None` to `uvicorn.run()`.
+- `tkinter` is now bundled in the executable (it was previously excluded), enabling error and fallback dialogs to appear on screen.
 
 ---
 
-### ✨ Highlights
+### Native Window vs Browser Fallback
 
-| Feature | Details |
+Scrappy opens as a **native desktop window** by default. If the native window cannot be initialised, it falls back to your **default browser** and shows a small status dialog.
+
+#### When you get a native window
+The native window uses **Microsoft Edge WebView2**, which is built into Windows 10 (v1803+) and all versions of Windows 11. You get a native window automatically when:
+
+- You are on **Windows 10 (version 1803 or later)** or **Windows 11**
+- **Microsoft Edge** is installed (it ships with Windows and keeps WebView2 up to date)
+- The installer ran successfully — it silently installs the WebView2 Runtime bootstrapper on machines that don't already have it
+
+#### When it falls back to the browser
+If WebView2 is unavailable (e.g. a heavily locked-down corporate machine or an outdated Windows build), Scrappy will:
+
+1. Open the app UI in your **default web browser** automatically
+2. Show a small **"Scrappy is running"** dialog with the local URL and an **Open in Browser** button
+3. Continue running normally — all features work identically in the browser
+
+To force a native window on a machine where WebView2 is missing, install it manually:
+**Settings → Windows Update → Optional Updates**, or download the runtime directly from Microsoft.
+
+---
+
+### Downloads
+
+| File | Platform |
 |---|---|
-| 🔍 **Multi-Query Scraping** | Enter multiple search queries (one per line) and run them all in one click |
-| 📋 **6 Data Fields** | Name · Address · Category · Phone · Website · Email |
-| 📧 **Email Extraction** | Optionally fetches emails directly from each business website |
-| 📊 **Excel Export** | Styled `.xlsx` with Data sheet + Summary sheet, auto-filter & freeze pane |
-| 🖥️ **Modern UI** | Dark-theme CustomTkinter interface with live results table |
-| 🔎 **Instant Filter** | Search across all columns in real time |
-| 🖱️ **Right-Click Menu** | Copy Name / Phone / Website / Email / full row |
-| 🤖 **No Detection** | Playwright + stealth JS injection mimics real human browsing |
-| 🔄 **Auto Browser Install** | Downloads Chromium automatically on first run — no manual setup |
-| 🪟 **Windows Installer** | One-click `.exe` installer built with Inno Setup 6 |
-| 🍎 **macOS DMG** | Drag-to-install `.dmg` with `.app` bundle |
+| `Scrappy_Setup_v2.0.exe` | Windows 10/11 (64-bit) |
+
+> No Python, Node.js, or browser installation required — everything is bundled.
 
 ---
 
-### 📦 Downloads
+### System Requirements
 
-| File | Platform | Size |
-|---|---|---|
-| `GoogleMapsScraper_Setup_v2.0.exe` | Windows 10/11 (64-bit) | ~85 MB |
-| `GoogleMapsScraper_v2.0.dmg` | macOS 12 Monterey or later | ~90 MB |
-
-> **No Python or browser installation required** — everything is bundled.
-
----
-
-### 🖥️ System Requirements
-
-**Windows**
-- Windows 10 or Windows 11 (64-bit)
+- Windows 10 (version 1803+) or Windows 11, 64-bit
 - 4 GB RAM minimum (8 GB recommended for large queries)
 - 500 MB free disk space
-- Internet connection
-
-**macOS**
-- macOS 12 Monterey or later
-- Apple Silicon (M1/M2/M3) or Intel
-- 4 GB RAM minimum
-- 500 MB free disk space
-- Internet connection
+- Internet connection for scraping
 
 ---
 
-### 🚀 How to Install
+### Quick Usage Guide
 
-#### Windows
-1. Download `GoogleMapsScraper_Setup_v2.0.exe`
-2. Double-click the installer
-3. Follow the on-screen steps (Next → Next → Install)
-4. Launch from the Desktop shortcut or Start Menu
-5. On first run, Chromium browser downloads automatically (~120 MB, one time only)
-
-#### macOS
-1. Download `GoogleMapsScraper_v2.0.dmg`
-2. Open the `.dmg` file
-3. Drag **Google Maps Scraper.app** into your **Applications** folder
-4. Right-click the app → **Open** (needed only the very first time on macOS)
-5. On first run, Chromium browser downloads automatically (~120 MB, one time only)
-
-#### Run from Source (Windows/macOS/Linux)
-```bash
-# 1. Clone the repo
-git clone https://github.com/soubarnak/google-maps-scraper.git
-cd google-maps-scraper
-
-# 2. Install dependencies
-pip install -r requirements.txt
-playwright install chromium
-
-# 3. Launch
-python scraper.py
-```
-
----
-
-### 📖 Quick Usage Guide
-
-1. **Launch** the application
-2. **Enter queries** in the left panel — one per line, e.g.:
+1. Launch **Scrappy** from the Desktop shortcut or Start Menu
+2. Enter search queries in the left panel — one per line, e.g.:
    ```
    IT Companies in Koramangala
    Restaurants in Bandra
    Law firms in Connaught Place
    ```
-3. **Toggle options:**
-   - ☑ *Run browser in background* — faster, no visible browser window
-   - ☑ *Extract emails from websites* — slower but finds contact emails
-4. Click **▶ Start Scraping**
+3. Toggle options as needed:
+   - **Run browser in background** — hides the Chromium window during scraping
+   - **Extract emails from websites** — fetches contact emails (adds ~5–10 s per place)
+   - **Phone numbers only** — skips leads with no phone number
+   - **Deduplicate leads** — if the same Name + Phone appears across queries, keeps only the latest result
+4. Click **Start Scraping**
 5. Watch results appear live in the table
-6. Use the **Filter bar** to search within results
-7. Click **📥 Export to Excel** to save your data
+6. Click **Export to Excel** — the file saves to your Downloads folder and opens in Excel automatically
 
 ---
 
-### ⚠️ Known Limitations
+### Known Limitations
 
-- **Google selector changes** — Google Maps occasionally updates its HTML structure.
-  If scraping stops working, check the [Issues](https://github.com/soubarnak/google-maps-scraper/issues) page for an update.
-- **Email extraction is slow** — each website fetch adds ~5–10 seconds per business.
-  Disable it for faster bulk scraping.
-- **Rate limiting** — for very large queries (1000+ results), Google may temporarily
-  slow responses. The scraper uses human-like delays to minimise this.
-- **macOS Gatekeeper** — you must right-click → Open the first time due to Apple's
-  notarisation requirement for non-App Store apps.
-- **Headless mode on Windows** — if you see a blank browser, switch to
-  *Run browser in background* = OFF for better compatibility.
+- **Google selector changes** — Google Maps occasionally updates its HTML. If scraping stops working, check the [Issues](https://github.com/soubarnak/scrappy/issues) page for an update.
+- **Email extraction is slow** — each website fetch adds 5–10 seconds per business. Disable it for faster bulk scraping.
+- **Rate limiting** — for very large queries (1000+ results), Google may slow responses temporarily. The scraper uses human-like delays to minimise this.
 
 ---
 
-### 🐛 Reporting Bugs
+### Changelog
+
+```
+v2.0.1  2026-03-17  Bug fixes: export, installer rename, unicode cleanup, startup crash
+v2.0    2025-03-17  First public release — FastAPI + React + Playwright desktop app
+v1.0    internal    Proof of concept — Selenium + basic Tkinter + CSV only
+```
+
+---
+
+### Reporting Bugs
 
 Found an issue? Please open a GitHub Issue and include:
 
-1. Your operating system (e.g. Windows 11, macOS 14)
+1. Your Windows version (e.g. Windows 11 23H2)
 2. The exact search query that caused the problem
-3. A screenshot of the error (if any)
-4. The status bar message shown in the app
+3. A screenshot of the error or status bar message
 
-👉 **[Open a Bug Report](https://github.com/soubarnak/google-maps-scraper/issues/new)**
-
----
-
-### 🔮 Planned for v2.1
-
-- [ ] Duplicate detection across queries
-- [ ] Pause / Resume scraping
-- [ ] CSV export option
-- [ ] Proxy support
-- [ ] Column visibility toggle
-- [ ] Dark / Light theme switch
+**[Open a Bug Report](https://github.com/soubarnak/scrappy/issues/new)**
 
 ---
 
-### 📜 Changelog Summary
-
-```
-v2.0  2025-03-17  First public release — full rewrite with Playwright + CustomTkinter
-v1.0  internal    Proof of concept — Selenium + basic Tkinter + CSV only
-```
-
-Full changelog: [CHANGELOG.md](./CHANGELOG.md)
-
----
-
-### 👩‍💻 Author
+### Author
 
 **Soubarna Karmakar**
 GitHub: [@soubarnak](https://github.com/soubarnak)

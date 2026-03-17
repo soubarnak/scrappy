@@ -258,9 +258,8 @@ async def export_excel() -> StreamingResponse:
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
-
-    # Allow buf to be garbage-collected after response is sent
-    wb.close()
+    # NOTE: do NOT call wb.close() — not available in all openpyxl versions
+    # and calling it after save() serves no purpose (buf is already populated).
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     return StreamingResponse(

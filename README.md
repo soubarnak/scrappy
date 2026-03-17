@@ -66,7 +66,7 @@
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/YOUR_USERNAME/google-maps-scraper.git
+git clone https://github.com/soubarnak/google-maps-scraper.git
 cd google-maps-scraper
 
 # 2. Install dependencies  (Windows: use install.bat instead)

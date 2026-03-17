@@ -12,6 +12,7 @@ __author__  = "Soubarna Karmakar"
 __version__ = "2.0"
 
 import random
+import re
 import subprocess
 import sys
 import time
@@ -245,41 +246,72 @@ class ScraperEngine:
                 pass
 
         # Rating & Reviews ─────────────────────────────────────────────────────
+        # Strategy 1 (most reliable): div.F7nice is Google Maps' dedicated
+        # rating summary block — contains both the number and review count.
         try:
-            # Rating: Google Maps puts the numeric value in an aria-label like "4.5 stars"
-            for sel in ['[aria-label$=" stars"]', '[aria-label*=" stars"]']:
-                el = page.query_selector(sel)
-                if el:
-                    label = el.get_attribute("aria-label") or ""
-                    parts = label.lower().split(" star")
-                    if parts:
-                        candidate = parts[0].strip()
-                        try:
-                            val = float(candidate)
-                            if 1.0 <= val <= 5.0:
-                                data["Rating"] = str(val)
-                                break
-                        except ValueError:
-                            pass
+            f7 = page.query_selector("div.F7nice")
+            if f7:
+                txt = (f7.inner_text() or "").strip()
+                # Text is typically "4.5\n(1,234)" or "4.5(1,234)" or "4.5 (1,234 reviews)"
+                r_match = re.search(r'\b([1-5]\.\d)\b', txt)
+                v_match = re.search(r'\(([0-9,]+)\)', txt)
+                if r_match:
+                    data["Rating"] = r_match.group(1)
+                if v_match:
+                    data["Reviews"] = v_match.group(1).replace(",", "")
         except Exception:
             pass
 
-        try:
-            # Reviews: aria-label like "1,234 reviews" or "1,234 Google reviews"
-            for sel in ['[aria-label$=" reviews"]', '[aria-label*=" reviews"]',
-                        '[aria-label$=" review"]',  '[aria-label*=" review"]']:
-                el = page.query_selector(sel)
-                if el:
-                    label = el.get_attribute("aria-label") or ""
-                    lbl_lower = label.lower()
-                    if "review" in lbl_lower:
-                        count = lbl_lower.split(" review")[0].strip()
-                        count = count.replace(",", "")
-                        if count.isdigit():
-                            data["Reviews"] = count
+        # Strategy 2: button that wraps the whole rating widget
+        # e.g. <button aria-label="4.5 stars 1,234 reviews">
+        if not data["Rating"] or not data["Reviews"]:
+            try:
+                btn = page.query_selector(
+                    'button[aria-label*="star"], button[aria-label*="review"]'
+                )
+                if btn:
+                    label = btn.get_attribute("aria-label") or ""
+                    if not data["Rating"]:
+                        rm = re.search(r'([1-5]\.\d)\s*star', label, re.IGNORECASE)
+                        if rm:
+                            data["Rating"] = rm.group(1)
+                    if not data["Reviews"]:
+                        vm = re.search(r'([0-9,]+)\s*review', label, re.IGNORECASE)
+                        if vm:
+                            data["Reviews"] = vm.group(1).replace(",", "")
+            except Exception:
+                pass
+
+        # Strategy 3: aria-label on individual span elements (last resort)
+        if not data["Rating"]:
+            try:
+                # Use query_selector_all and take the FIRST one inside the header,
+                # not a random review card further down the page.
+                for sel in ['[jslog*="rating"] [aria-label*="star"]',
+                            'span[aria-label*=" stars"]']:
+                    el = page.query_selector(sel)
+                    if el:
+                        label = el.get_attribute("aria-label") or ""
+                        rm = re.search(r'([1-5]\.\d)', label)
+                        if rm:
+                            data["Rating"] = rm.group(1)
                             break
-        except Exception:
-            pass
+            except Exception:
+                pass
+
+        if not data["Reviews"]:
+            try:
+                for sel in ['[jslog*="review"] [aria-label*="review"]',
+                            'span[aria-label*=" reviews"]', 'span[aria-label*=" review"]']:
+                    el = page.query_selector(sel)
+                    if el:
+                        label = el.get_attribute("aria-label") or ""
+                        vm = re.search(r'([0-9,]+)\s*review', label, re.IGNORECASE)
+                        if vm:
+                            data["Reviews"] = vm.group(1).replace(",", "")
+                            break
+            except Exception:
+                pass
 
         # Address, Phone, Website via data-item-id ─────────────────────────────
         try:

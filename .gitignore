@@ -1,0 +1,53 @@
+# ── Build outputs ─────────────────────────────────────────────────────────────
+dist/
+build/
+installer_output/
+*.egg-info/
+
+# ── PyInstaller ────────────────────────────────────────────────────────────────
+# (spec files ARE committed — only temp artefacts excluded)
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# ── Virtual environments ───────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+.env
+
+# ── Playwright local browser cache ────────────────────────────────────────────
+.local-chromium/
+playwright/.local-browsers/
+
+# ── Scraped / exported data ────────────────────────────────────────────────────
+google_maps_*.xlsx
+*.csv
+
+# ── IDE / editor ──────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# ── macOS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ── Windows ────────────────────────────────────────────────────────────────────
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# ── Logs & temp ───────────────────────────────────────────────────────────────
+*.log
+*.tmp
+*.bak
+*.orig

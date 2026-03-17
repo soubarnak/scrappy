@@ -1,0 +1,11 @@
+# Google Maps Scraper — Python dependencies
+# Install with:  pip install -r requirements.txt
+
+customtkinter>=5.2.0
+playwright>=1.40.0
+openpyxl>=3.1.0
+requests>=2.28.0
+beautifulsoup4>=4.12.0
+
+# pandas is optional (used internally if available)
+pandas>=2.0.0

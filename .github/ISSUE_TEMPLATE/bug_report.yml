@@ -1,0 +1,91 @@
+name: 🐛 Bug Report
+description: Report something that isn't working correctly
+title: "[BUG] "
+labels: ["bug", "needs-triage"]
+assignees:
+  - soubarna
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug!
+        Please fill in as much detail as possible so it can be reproduced and fixed quickly.
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - Windows 10
+        - Windows 11
+        - macOS 12 Monterey
+        - macOS 13 Ventura
+        - macOS 14 Sonoma
+        - macOS 15 Sequoia
+        - Other (describe below)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install_method
+    attributes:
+      label: How did you install the app?
+      options:
+        - Windows installer (.exe)
+        - macOS DMG (.dmg)
+        - Run from source (python scraper.py)
+    validations:
+      required: true
+
+  - type: input
+    id: app_version
+    attributes:
+      label: App Version
+      description: "Found in the sidebar footer (e.g. v2.0)"
+      placeholder: "v2.0"
+    validations:
+      required: true
+
+  - type: input
+    id: python_version
+    attributes:
+      label: Python Version (if running from source)
+      description: "Output of: python --version"
+      placeholder: "Python 3.12.0"
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: What happened? What did you expect to happen?
+      placeholder: |
+        When I click "Start Scraping" with the query "Hotels in Mumbai", the app
+        freezes after finding 20 results. I expected it to continue to 100+.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        1. Open the app
+        2. Enter "Hotels in Mumbai" in the query box
+        3. Click Start Scraping
+        4. After ~20 results the app becomes unresponsive
+    validations:
+      required: true
+
+  - type: textarea
+    id: error_message
+    attributes:
+      label: Error Message (if any)
+      description: Paste any error message shown in the app or in the terminal
+      render: text
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional Context
+      description: Screenshots, query text, network conditions, etc.

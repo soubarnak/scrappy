@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m playwright install --check)",
+      "Bash(pip install:*)",
+      "Bash(python -c \"from bs4 import BeautifulSoup; print\\(''bs4 ok''\\)\")",
+      "Bash(python -c \":*)"
+    ]
+  }
+}

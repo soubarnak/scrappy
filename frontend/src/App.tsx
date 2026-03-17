@@ -1,31 +1,39 @@
 /**
- * Google Maps Scraper — Main React App
+ * Scrappy — Main React App
  * Author    : Soubarna Karmakar
  * Copyright : © 2025 Soubarna Karmakar. All rights reserved.
  * Version   : 2.0
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Moon, Sun } from "lucide-react";
 import { Sidebar }       from "@/components/Sidebar";
 import { ResultsTable, type ResultRow } from "@/components/ResultsTable";
 import { StatusBar }     from "@/components/StatusBar";
+import { Button }        from "@/components/ui/button";
 
 // ── WebSocket URL ─────────────────────────────────────────────────────────────
-// In production the server runs on the same host/port as the app.
-// In Vite dev mode the proxy in vite.config.ts forwards /ws → localhost:7410
 const WS_URL = `ws://${window.location.host}/ws`;
 
 type Level = "info" | "success" | "warning" | "error";
 
-interface StatusMsg { message: string; level: Level; }
+interface StatusMsg  { message: string; level: Level; }
 interface ProgressMsg { current: number; total: number; query: string; }
 
 export default function App() {
-  // ── Settings ─────────────────────────────────────────────────────────────
+  // ── Theme ──────────────────────────────────────────────────────────────────
+  const [isDark, setIsDark] = useState(true);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", isDark);
+  }, [isDark]);
+
+  // ── Settings ──────────────────────────────────────────────────────────────
   const [queries,       setQueries]       = useState("IT Companies in Koramangala\nIT Companies in Whitefield");
   const [headless,      setHeadless]      = useState(false);
   const [extractEmails, setExtractEmails] = useState(false);
   const [phoneOnly,     setPhoneOnly]     = useState(false);
+  const [dedup,         setDedup]         = useState(false);
 
   // ── State ─────────────────────────────────────────────────────────────────
   const [isRunning, setIsRunning] = useState(false);
@@ -55,6 +63,17 @@ export default function App() {
             setRows(prev => [...prev, msg.data as ResultRow]);
             break;
 
+          // Deduplication: replace an existing row in-place
+          case "result_replace":
+            setRows(prev => {
+              const next = [...prev];
+              if (msg.index >= 0 && msg.index < next.length) {
+                next[msg.index] = msg.data as ResultRow;
+              }
+              return next;
+            });
+            break;
+
           case "status":
             setStatus({ message: msg.message, level: msg.level ?? "info" });
             break;
@@ -67,7 +86,7 @@ export default function App() {
             setIsRunning(false);
             setProgress({ current: 0, total: 0, query: "" });
             setStatus({
-              message: `✓ Done! ${msg.total} results extracted.`,
+              message: "Done! " + msg.total + " results extracted.",
               level: "success",
             });
             break;
@@ -86,7 +105,6 @@ export default function App() {
 
     ws.onclose = () => {
       setIsRunning(false);
-      // Auto-reconnect after 2 s (server may still be starting up)
       setTimeout(connect, 2000);
     };
   }, []);
@@ -108,51 +126,44 @@ export default function App() {
       return;
     }
     setIsRunning(true);
-    setStatus({ message: `Starting ${queryList.length} quer${queryList.length === 1 ? "y" : "ies"}…`, level: "info" });
+    setStatus({ message: "Starting " + queryList.length + " quer" + (queryList.length === 1 ? "y" : "ies") + "…", level: "info" });
     wsRef.current.send(JSON.stringify({
       type: "start",
       queries: queryList,
-      options: { headless, extractEmails, phoneOnly },
+      options: { headless, extractEmails, phoneOnly, dedup },
     }));
-  }, [queries, headless, extractEmails, phoneOnly]);
+  }, [queries, headless, extractEmails, phoneOnly, dedup]);
 
   const handleStop = useCallback(() => {
     wsRef.current?.send(JSON.stringify({ type: "stop" }));
     setStatus({ message: "Stop signal sent…", level: "warning" });
   }, []);
 
+  // Export: GET /export — server reads its own result store, no large POST body
   const handleExport = useCallback(async () => {
     if (rows.length === 0) return;
-
-    // Build xlsx via SheetJS (loaded via CDN) or fall back to requesting
-    // the Python backend to write the file via a simple fetch call.
     try {
-      const resp = await fetch("/export", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows }),
-      });
-      if (resp.ok) {
-        const blob = await resp.blob();
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement("a");
-        a.href     = url;
-        a.download = `google_maps_scraper_${Date.now()}.xlsx`;
-        a.click();
-        URL.revokeObjectURL(url);
-        setStatus({ message: `Exported ${rows.length} records to Excel.`, level: "success" });
-      } else {
-        throw new Error("Export failed");
-      }
+      const resp = await fetch("/export");
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const blob = await resp.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = "scrappy_" + Date.now() + ".xlsx";
+      a.click();
+      URL.revokeObjectURL(url);
+      setStatus({ message: "Exported " + rows.length + " records to Excel.", level: "success" });
     } catch {
       setStatus({ message: "Export failed — check server.", level: "error" });
     }
-  }, [rows]);
+  }, [rows.length]);
 
   const handleClear = useCallback(() => {
     setRows([]);
     setProgress({ current: 0, total: 0, query: "" });
     setStatus({ message: "Results cleared. Ready to scrape.", level: "info" });
+    // Also clear the server-side store
+    wsRef.current?.send(JSON.stringify({ type: "clear" }));
   }, []);
 
   // ── Stats ─────────────────────────────────────────────────────────────────
@@ -175,6 +186,8 @@ export default function App() {
         onExtractEmailsChange={setExtractEmails}
         phoneOnly={phoneOnly}
         onPhoneOnlyChange={setPhoneOnly}
+        dedup={dedup}
+        onDedupChange={setDedup}
         isRunning={isRunning}
         onStart={handleStart}
         onStop={handleStop}
@@ -193,13 +206,27 @@ export default function App() {
             <p className="text-xs text-muted-foreground">
               {rows.length === 0
                 ? "Results will appear here in real time"
-                : `${rows.length.toLocaleString()} places collected`}
+                : rows.length.toLocaleString() + " places collected"}
             </p>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="font-semibold text-primary">Soubarna Karmakar</span>
-            <span>·</span>
-            <span>Scrappy v2.0</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="font-semibold text-primary">Soubarna Karmakar</span>
+              <span>·</span>
+              <span>Scrappy v2.0</span>
+            </div>
+            {/* Light / Dark toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={() => setIsDark(d => !d)}
+              title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {isDark
+                ? <Sun  className="size-4 text-warning" />
+                : <Moon className="size-4 text-primary" />}
+            </Button>
           </div>
         </header>
 

@@ -1,7 +1,7 @@
 import React from "react";
 import {
   MapPin, Play, Square, Download, Trash2,
-  Globe, Mail, Monitor, Phone, ChevronRight,
+  Globe, Mail, Monitor, Phone, ChevronRight, Users,
 } from "lucide-react";
 import { Button }   from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,6 +25,8 @@ interface SidebarProps {
   onExtractEmailsChange: (v: boolean) => void;
   phoneOnly:     boolean;
   onPhoneOnlyChange: (v: boolean) => void;
+  dedup:         boolean;
+  onDedupChange: (v: boolean) => void;
   isRunning:     boolean;
   onStart:       () => void;
   onStop:        () => void;
@@ -39,6 +41,7 @@ export function Sidebar({
   headless, onHeadlessChange,
   extractEmails, onExtractEmailsChange,
   phoneOnly, onPhoneOnlyChange,
+  dedup, onDedupChange,
   isRunning, onStart, onStop, onExport, onClear,
   stats, canExport,
 }: SidebarProps) {
@@ -120,6 +123,15 @@ export function Sidebar({
             description="Skip leads without a phone"
             checked={phoneOnly}
             onCheckedChange={onPhoneOnlyChange}
+            disabled={isRunning}
+          />
+
+          <ToggleRow
+            icon={<Users className="size-4 text-muted-foreground" />}
+            label="Deduplicate leads"
+            description="Same name+phone keeps latest"
+            checked={dedup}
+            onCheckedChange={onDedupChange}
             disabled={isRunning}
           />
         </section>

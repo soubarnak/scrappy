@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Google Maps Scraper — FastAPI WebSocket Server
+Scrappy — FastAPI WebSocket Server
 Serves the React frontend and handles real-time scraping over WebSocket.
 
 Author    : Soubarna Karmakar
@@ -24,7 +24,6 @@ from typing import Any, List, Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 import uvicorn
 import openpyxl
 from openpyxl.styles import Font, Alignment
@@ -43,11 +42,27 @@ else:
 FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
 
 # ── FastAPI app ────────────────────────────────────────────────────────────────
-app = FastAPI(title="Google Maps Scraper", version="2.0")
+app = FastAPI(title="Scrappy", version="2.0")
+
+# ── Server-side result store ──────────────────────────────────────────────────
+# Results are stored here so the export endpoint can serve them directly
+# without the browser sending a large JSON POST body (which breaks on big datasets).
+_result_store: List[dict] = []
+_result_lock  = threading.Lock()
 
 # One active scraper at a time
 _active_scraper: Optional[Any] = None
 _scraper_lock   = threading.Lock()
+
+
+# ── Excel columns ──────────────────────────────────────────────────────────────
+_COLS      = ["Name", "Address", "Category", "Phone", "Website", "Email",
+              "Rating", "Reviews", "Query"]
+_COL_WIDTH = {"Name": 28, "Address": 38, "Category": 18,
+              "Phone": 16, "Website": 32, "Email": 28,
+              "Rating": 10, "Reviews": 12, "Query": 22}
+_NUM_COLS   = {"Reviews"}   # stored as int in Excel
+_PHONE_COLS = {"Phone"}     # @-format: preserves + and leading zeros
 
 
 # ── WebSocket endpoint ─────────────────────────────────────────────────────────
@@ -63,10 +78,6 @@ async def websocket_endpoint(ws: WebSocket) -> None:
             await ws.send_text(json.dumps(payload))
         except Exception:
             pass
-
-    def _cb_result(data: dict) -> None:
-        asyncio.run_coroutine_threadsafe(
-            send({"type": "result", "data": data}), loop)
 
     def _cb_status(message: str, level: str = "info") -> None:
         asyncio.run_coroutine_threadsafe(
@@ -104,7 +115,7 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                     from email_extractor import EmailExtractor  # noqa: PLC0415
                 except ImportError as exc:
                     await send({"type": "status",
-                                "message": f"Import error: {exc}. Re-run install.bat.",
+                                "message": "Import error: %s. Re-run install.bat." % exc,
                                 "level": "error"})
                     continue
 
@@ -115,6 +126,35 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                                     "level": "warning"})
                         continue
 
+                # Clear the store for the new run
+                with _result_lock:
+                    _result_store.clear()
+
+                dedup = bool(opts.get("dedup", False))
+
+                # Build the result callback with dedup logic
+                def _make_cb_result(dedup_flag: bool):
+                    def _cb_result(data: dict) -> None:
+                        with _result_lock:
+                            if dedup_flag:
+                                name  = data.get("Name", "").strip()
+                                phone = data.get("Phone", "").strip()
+                                if name and phone:
+                                    for i, existing in enumerate(_result_store):
+                                        if (existing.get("Name", "").strip() == name and
+                                                existing.get("Phone", "").strip() == phone):
+                                            # Replace in store and notify frontend
+                                            _result_store[i] = data
+                                            asyncio.run_coroutine_threadsafe(
+                                                send({"type": "result_replace",
+                                                      "index": i, "data": data}), loop)
+                                            return
+                            _result_store.append(data)
+                        asyncio.run_coroutine_threadsafe(
+                            send({"type": "result", "data": data}), loop)
+                    return _cb_result
+
+                with _scraper_lock:
                     email_ext = (
                         EmailExtractor() if opts.get("extractEmails") else None
                     )
@@ -122,10 +162,10 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                         headless        = bool(opts.get("headless", False)),
                         phone_only      = bool(opts.get("phoneOnly", False)),
                         email_extractor = email_ext,
-                        on_result     = _cb_result,
-                        on_status     = _cb_status,
-                        on_progress   = _cb_progress,
-                        on_complete   = _cb_complete,
+                        on_result       = _make_cb_result(dedup),
+                        on_status       = _cb_status,
+                        on_progress     = _cb_progress,
+                        on_complete     = _cb_complete,
                     )
 
                 threading.Thread(
@@ -140,7 +180,12 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                     if _active_scraper:
                         _active_scraper.stop()
                 await send({"type": "status",
-                            "message": "Stop signal sent…", "level": "warning"})
+                            "message": "Stop signal sent.", "level": "warning"})
+
+            # CLEAR ────────────────────────────────────────────────────────────
+            elif kind == "clear":
+                with _result_lock:
+                    _result_store.clear()
 
             # PING ─────────────────────────────────────────────────────────────
             elif kind == "ping":
@@ -153,9 +198,76 @@ async def websocket_endpoint(ws: WebSocket) -> None:
     except Exception as exc:
         try:
             await send({"type": "status",
-                        "message": f"Server error: {exc}", "level": "error"})
+                        "message": "Server error: %s" % exc, "level": "error"})
         except Exception:
             pass
+
+
+# ── Excel export (GET — reads server-side store, no large POST body) ──────────
+@app.get("/export")
+async def export_excel() -> StreamingResponse:
+    with _result_lock:
+        rows_snapshot = list(_result_store)   # copy under lock, release immediately
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Scrappy Data"
+
+    hdr_font  = Font(name="Calibri", bold=True, size=11)
+    hdr_align = Alignment(horizontal="center", vertical="center")
+
+    for ci, col in enumerate(_COLS, 1):
+        cell = ws.cell(row=1, column=ci, value=col)
+        cell.font      = hdr_font
+        cell.alignment = hdr_align
+        ws.column_dimensions[get_column_letter(ci)].width = _COL_WIDTH.get(col, 20)
+
+    for ri, row in enumerate(rows_snapshot, 2):
+        for ci, col in enumerate(_COLS, 1):
+            raw = row.get(col, "") or ""
+            if col in _NUM_COLS and raw:
+                try:
+                    raw = int(raw)
+                except (ValueError, TypeError):
+                    pass
+            elif col == "Rating" and raw:
+                try:
+                    raw = float(raw)
+                except (ValueError, TypeError):
+                    pass
+            cell = ws.cell(row=ri, column=ci, value=raw)
+            cell.alignment = Alignment(vertical="center")
+            if col in _PHONE_COLS and raw:
+                cell.number_format = "@"   # text format — keeps + and leading zeros
+
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = (
+        "A1:%s%d" % (get_column_letter(len(_COLS)), len(rows_snapshot) + 1)
+    )
+    ws.row_dimensions[1].height = 22
+
+    ws2 = wb.create_sheet("Summary")
+    ws2["A1"] = "Scrappy — Export Summary"
+    ws2["A1"].font = Font(bold=True, size=13)
+    ws2["A3"] = "Author";    ws2["B3"] = "Soubarna Karmakar"
+    ws2["A4"] = "Generated"; ws2["B4"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ws2["A5"] = "Records";   ws2["B5"] = len(rows_snapshot)
+    ws2.column_dimensions["A"].width = 16
+    ws2.column_dimensions["B"].width = 30
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    # Allow buf to be garbage-collected after response is sent
+    wb.close()
+
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="scrappy_%s.xlsx"' % ts},
+    )
 
 
 # ── Serve React build (SPA fallback) ──────────────────────────────────────────
@@ -178,79 +290,6 @@ else:
             "message": "Frontend not built.",
             "fix": "cd frontend && npm install && npm run build",
         }
-
-
-# ── Excel export ──────────────────────────────────────────────────────────────
-_COLS      = ["Name", "Address", "Category", "Phone", "Website", "Email", "Rating", "Reviews", "Query"]
-_COL_WIDTH = {"Name": 28, "Address": 38, "Category": 18,
-               "Phone": 16, "Website": 32, "Email": 28,
-               "Rating": 10, "Reviews": 12, "Query": 22}
-
-
-class ExportRequest(BaseModel):
-    rows: List[dict]
-
-
-_NUM_COLS    = {"Reviews"}   # stored as int in Excel
-_PHONE_COLS  = {"Phone"}     # stored as text with @ format (preserves + and leading zeros)
-
-@app.post("/export")
-async def export_excel(req: ExportRequest) -> StreamingResponse:
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Scrappy Data"
-
-    hdr_font  = Font(name="Calibri", bold=True, size=11)
-    hdr_align = Alignment(horizontal="center", vertical="center")
-
-    for ci, col in enumerate(_COLS, 1):
-        cell = ws.cell(row=1, column=ci, value=col)
-        cell.font      = hdr_font
-        cell.alignment = hdr_align
-        ws.column_dimensions[get_column_letter(ci)].width = _COL_WIDTH.get(col, 20)
-
-    for ri, row in enumerate(req.rows, 2):
-        for ci, col in enumerate(_COLS, 1):
-            raw = row.get(col, "")
-            # Store numeric columns as actual numbers so Excel can sort/sum them
-            if col in _NUM_COLS and raw:
-                try:
-                    raw = int(raw)
-                except (ValueError, TypeError):
-                    pass
-            elif col == "Rating" and raw:
-                try:
-                    raw = float(raw)
-                except (ValueError, TypeError):
-                    pass
-            cell = ws.cell(row=ri, column=ci, value=raw)
-            cell.alignment = Alignment(vertical="center")
-            if col in _PHONE_COLS:
-                cell.number_format = "@"   # text format — keeps +, leading zeros
-
-    ws.freeze_panes = "A2"
-    ws.auto_filter.ref = f"A1:{get_column_letter(len(_COLS))}{len(req.rows) + 1}"
-    ws.row_dimensions[1].height = 22
-
-    ws2 = wb.create_sheet("Summary")
-    ws2["A1"] = "Scrappy — Export Summary"
-    ws2["A1"].font = Font(bold=True, size=13)
-    ws2["A3"] = "Author";    ws2["B3"] = "Soubarna Karmakar"
-    ws2["A4"] = "Generated"; ws2["B4"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    ws2["A5"] = "Records";   ws2["B5"] = len(req.rows)
-    ws2.column_dimensions["A"].width = 16
-    ws2.column_dimensions["B"].width = 30
-
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return StreamingResponse(
-        buf,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="google_maps_{ts}.xlsx"'},
-    )
 
 
 # ── Standalone entry (dev mode: python server.py) ─────────────────────────────

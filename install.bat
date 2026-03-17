@@ -30,20 +30,32 @@ if errorlevel 1 (
 echo  [OK] Node & node --version
 
 echo.
-echo  [1/4] Installing Python packages...
+echo  [1/5] Installing core Python packages...
 pip install -r requirements.txt --quiet --upgrade
 if errorlevel 1 ( echo  [ERROR] pip install failed. & pause & exit /b 1 )
 
-echo  [2/4] Installing Playwright Chromium...
+:: ── pywebview is optional (native window instead of browser tab) ─────────────
+:: Requires .NET SDK and only supports Python 3.10-3.12 on Windows.
+:: If it fails we skip it silently — the app opens in your default browser instead.
+echo  [2/5] Trying pywebview (optional native window)...
+pip install pywebview --quiet 2>nul
+if errorlevel 1 (
+    echo  [INFO] pywebview skipped ^(Python 3.14 not yet supported^).
+    echo         App will open in your default browser instead. This is fine!
+) else (
+    echo  [OK] pywebview installed — app will open in a native window.
+)
+
+echo  [3/5] Installing Playwright Chromium...
 python -m playwright install chromium
 if errorlevel 1 ( echo  [WARNING] Chromium install may have failed — try manually later. )
 
-echo  [3/4] Installing frontend npm packages...
+echo  [4/5] Installing frontend npm packages...
 cd frontend
 call npm install --silent
 if errorlevel 1 ( echo  [ERROR] npm install failed. & cd .. & pause & exit /b 1 )
 
-echo  [4/4] Building React UI (shadcn/ui + Cosmic Night theme)...
+echo  [5/5] Building React UI (shadcn/ui + Cosmic Night theme)...
 call npm run build --silent
 if errorlevel 1 ( echo  [ERROR] npm build failed. & cd .. & pause & exit /b 1 )
 cd ..

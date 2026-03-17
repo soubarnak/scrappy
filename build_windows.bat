@@ -26,8 +26,15 @@ echo  [OK] Node   & node --version
 echo.
 echo  [1/5] Installing Python dependencies...
 pip install -r requirements.txt --quiet --upgrade
-pip install pyinstaller --quiet --upgrade
 if errorlevel 1 ( echo [ERROR] pip failed. & goto :fail )
+
+:: pywebview is optional (native window). Try to install but don't abort if it fails.
+:: It requires .NET SDK and only has pre-built wheels for Python 3.10-3.12.
+echo  [1b] Trying pywebview (optional)...
+pip install pywebview --quiet 2>nul || echo  [INFO] pywebview skipped - app will open in browser. That is fine.
+
+pip install pyinstaller --quiet --upgrade
+if errorlevel 1 ( echo [ERROR] PyInstaller install failed. & goto :fail )
 
 :: ── Step 2: Build React frontend ─────────────────────────────────────────────
 echo  [2/5] Building React frontend (shadcn/ui)...

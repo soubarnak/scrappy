@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Google Maps Scraper — Core Scraping Engine
+Google Maps Scraper -- Core Scraping Engine
 Playwright-based human-like browser automation for Google Maps.
 
 Author    : Soubarna Karmakar
-Copyright : © 2025 Soubarna Karmakar. All rights reserved.
+Copyright : (c) 2025 Soubarna Karmakar. All rights reserved.
 Version   : 2.0
 """
 
@@ -12,7 +12,6 @@ __author__  = "Soubarna Karmakar"
 __version__ = "2.0"
 
 import random
-import re
 import subprocess
 import sys
 import time
@@ -41,8 +40,8 @@ CompleteCB = Callable[[int], None]
 class ScraperEngine:
     """
     Two-phase Google Maps scraper.
-      Phase 1 — scroll the results feed and collect all place URLs.
-      Phase 2 — visit each URL and extract business details.
+      Phase 1: scroll the results feed and collect all place URLs.
+      Phase 2: visit each URL and extract business details.
     """
 
     def __init__(
@@ -69,14 +68,14 @@ class ScraperEngine:
     def stop(self):
         self._stop = True
 
-    def run(self, queries: list[str]):
+    def run(self, queries: list):
         self.is_running = True
         self._stop      = False
         total_found     = 0
 
         try:
             self._ensure_browser()
-            self._status("Launching browser…")
+            self._status("Launching browser...")
 
             with sync_playwright() as pw:
                 browser = pw.chromium.launch(
@@ -113,14 +112,17 @@ class ScraperEngine:
                     if not query:
                         continue
 
-                    self._status(f"[{idx+1}/{len(queries)}] Collecting: "{query}"")
+                    # NOTE: plain ASCII quotes only -- no smart/curly quotes
+                    self._status(
+                        '[%d/%d] Collecting: "%s"' % (idx + 1, len(queries), query)
+                    )
                     urls = self._collect_urls(page, query)
 
                     if not urls:
-                        self._status(f'No results found for "{query}"', "warning")
+                        self._status('No results found for "%s"' % query, "warning")
                         continue
 
-                    self._status(f"Extracting data from {len(urls)} places…")
+                    self._status("Extracting data from %d places..." % len(urls))
 
                     for j, url in enumerate(urls):
                         if self._stop:
@@ -135,18 +137,18 @@ class ScraperEngine:
                 browser.close()
 
             if self._stop:
-                self._status(f"Stopped. {total_found} results collected.", "warning")
+                self._status("Stopped. %d results collected." % total_found, "warning")
             else:
-                self._status(f"✓ Done! {total_found} results extracted.", "success")
+                self._status("Done! %d results extracted." % total_found, "success")
 
         except Exception as exc:
-            self._status(f"Fatal error: {exc}", "error")
+            self._status("Fatal error: %s" % exc, "error")
         finally:
             self.is_running = False
             self.on_complete(total_found)
 
-    # ── Phase 1 — collect place URLs ───────────────────────────────────────────
-    def _collect_urls(self, page, query: str) -> list[str]:
+    # ── Phase 1 -- collect place URLs ─────────────────────────────────────────
+    def _collect_urls(self, page, query: str) -> list:
         search_url = MAPS_SEARCH_URL + quote_plus(query)
         try:
             page.goto(search_url, wait_until="domcontentloaded")
@@ -156,15 +158,17 @@ class ScraperEngine:
         self._sleep(2.5, 3.5)
         self._dismiss_dialogs(page)
 
-        seen: set[str] = set()
-        all_urls:  list[str] = []
+        seen: set = set()
+        all_urls: list = []
         stale_scrolls = 0
         MAX_STALE     = 5
 
         while not self._stop:
             # Grab all place links currently in the feed
             try:
-                links = page.query_selector_all('div[role="feed"] a[href*="/maps/place/"]')
+                links = page.query_selector_all(
+                    'div[role="feed"] a[href*="/maps/place/"]'
+                )
                 for el in links:
                     href = el.get_attribute("href") or ""
                     clean = href.split("?")[0]
@@ -176,16 +180,16 @@ class ScraperEngine:
 
             count_before = len(all_urls)
 
-            # Check for end-of-results
+            # Check for end-of-results text
             try:
                 body_text = page.inner_text("body")
                 if any(p in body_text for p in _END_PHRASES):
-                    self._status(f"End of list — {len(all_urls)} places found.")
+                    self._status("End of list -- %d places found." % len(all_urls))
                     break
             except Exception:
                 pass
 
-            # Scroll the feed
+            # Scroll the feed to load more results
             try:
                 page.evaluate(
                     """() => {
@@ -200,15 +204,17 @@ class ScraperEngine:
             if len(all_urls) == count_before:
                 stale_scrolls += 1
                 if stale_scrolls >= MAX_STALE:
-                    self._status(f"No more new results — {len(all_urls)} places found.")
+                    self._status(
+                        "No more new results -- %d places found." % len(all_urls)
+                    )
                     break
             else:
                 stale_scrolls = 0
-                self._status(f"Found {len(all_urls)} places so far…")
+                self._status("Found %d places so far..." % len(all_urls))
 
         return all_urls
 
-    # ── Phase 2 — extract data from a place page ───────────────────────────────
+    # ── Phase 2 -- extract data from a single place page ──────────────────────
     def _extract(self, page, url: str, query: str) -> Optional[dict]:
         try:
             page.goto(url, wait_until="domcontentloaded")
@@ -238,7 +244,7 @@ class ScraperEngine:
             except Exception:
                 pass
 
-        # Info items (address / phone / website) ───────────────────────────────
+        # Address, Phone, Website via data-item-id ─────────────────────────────
         try:
             items = page.query_selector_all("[data-item-id]")
             for item in items:
@@ -288,10 +294,10 @@ class ScraperEngine:
 
     # ── Helpers ────────────────────────────────────────────────────────────────
     def _dismiss_dialogs(self, page):
-        """Click 'Accept' / 'Agree' consent dialogs if present."""
-        for text in ["Accept all", "Accept", "Agree", "I agree"]:
+        """Click Accept/Agree consent dialogs if present."""
+        for label in ["Accept all", "Accept", "Agree", "I agree"]:
             try:
-                btn = page.query_selector(f'button:has-text("{text}")')
+                btn = page.query_selector('button:has-text("%s")' % label)
                 if btn:
                     btn.click()
                     self._sleep(0.8, 1.2)
@@ -302,7 +308,7 @@ class ScraperEngine:
     def _aria_text(self, page, label: str) -> str:
         try:
             el = page.query_selector(
-                f'[aria-label*="{label}"], [data-tooltip*="{label}"]'
+                '[aria-label*="%s"], [data-tooltip*="%s"]' % (label, label)
             )
             return (el.inner_text() or "").strip() if el else ""
         except Exception:
@@ -317,13 +323,13 @@ class ScraperEngine:
 
     @staticmethod
     def _ensure_browser():
-        """Download Chromium if not present (safe in frozen PyInstaller builds)."""
+        """Download Chromium if not present (PyInstaller-safe)."""
+        import os
         try:
-            from playwright.sync_api import sync_playwright
             with sync_playwright() as pw:
                 path = pw.chromium.executable_path
-                if not path or not __import__("os").path.exists(path):
-                    raise FileNotFoundError
+                if not path or not os.path.exists(path):
+                    raise FileNotFoundError("Chromium not found")
         except Exception:
             subprocess.run(
                 [sys.executable, "-m", "playwright", "install", "chromium"],

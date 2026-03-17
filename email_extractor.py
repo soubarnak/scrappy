@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Google Maps Scraper — Email Extractor
+Google Maps Scraper -- Email Extractor
 Fetches business websites and extracts contact email addresses.
 
 Author    : Soubarna Karmakar
-Copyright : © 2025 Soubarna Karmakar. All rights reserved.
+Copyright : (c) 2025 Soubarna Karmakar. All rights reserved.
 Version   : 2.0
 """
 
@@ -12,7 +12,7 @@ __author__  = "Soubarna Karmakar"
 __version__ = "2.0"
 
 import re
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 try:
     import requests
@@ -21,7 +21,7 @@ try:
 except ImportError:
     _LIBS_OK = False
 
-# Email regex — RFC-ish but practical
+# Email regex -- RFC-ish but practical
 _EMAIL_RE = re.compile(
     r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}"
 )
@@ -30,7 +30,17 @@ _EMAIL_RE = re.compile(
 _SKIP = [
     "example", "test", "noreply", "no-reply", "sentry",
     "wixpress", "yourdomain", "domain.com", "@2x", ".png",
-    ".jpg", ".gif", "placeholder", "schema.org",
+    ".jpg", ".gif", "placeholder", "schema.org", "email.com",
+    "acme.com", "company.com", "yoursite", "website.com",
+    "wordpress", "w3.org", "googleapis", "gstatic",
+]
+
+# Contact page slug patterns to try (appended to base domain)
+_CONTACT_SLUGS = [
+    "/contact", "/contact-us", "/contactus",
+    "/about", "/about-us", "/aboutus",
+    "/reach-us", "/reach", "/get-in-touch",
+    "/support", "/help",
 ]
 
 _HEADERS = {
@@ -39,17 +49,19 @@ _HEADERS = {
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/124.0.0.0 Safari/537.36"
     ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate",
 }
 
 
 class EmailExtractor:
     """
     Scrapes a business website to find a contact email address.
-    Checks the home page first, then tries a /contact page.
+    Checks the home page first, then tries common contact page URLs.
     """
 
-    def __init__(self, timeout: int = 10):
+    def __init__(self, timeout: int = 12):
         self.timeout = timeout
         if _LIBS_OK:
             self._session = requests.Session()
@@ -64,63 +76,86 @@ class EmailExtractor:
         # Ensure the URL has a scheme
         if not url.startswith("http"):
             url = "https://" + url
-        try:
-            resp = self._session.get(
-                url, timeout=self.timeout,
-                allow_redirects=True, stream=False
-            )
-            resp.raise_for_status()
-            html  = resp.text
-            soup  = BeautifulSoup(html, "html.parser")
 
-            # 1. mailto: links — most reliable
-            for a in soup.find_all("a", href=True):
-                href = a["href"]
-                if href.lower().startswith("mailto:"):
-                    email = href[7:].split("?")[0].strip()
-                    if self._valid(email):
-                        return email
+        # 1. Try home page
+        email = self._scan_url(url)
+        if email:
+            return email
 
-            # 2. Regex scan of page text
-            emails = [e for e in _EMAIL_RE.findall(html) if self._valid(e)]
-            if emails:
-                return emails[0]
+        # 2. Try contact pages -- both from link discovery and direct slug probing
+        base = self._base_url(url)
+        for slug in _CONTACT_SLUGS:
+            candidate = base + slug
+            if candidate == url:
+                continue
+            email = self._scan_url(candidate)
+            if email:
+                return email
 
-            # 3. Try /contact page
-            contact_url = self._find_contact_link(soup, url)
-            if contact_url:
-                try:
-                    r2   = self._session.get(contact_url, timeout=self.timeout)
-                    soup2 = BeautifulSoup(r2.text, "html.parser")
-                    for a in soup2.find_all("a", href=True):
-                        href = a["href"]
-                        if href.lower().startswith("mailto:"):
-                            email = href[7:].split("?")[0].strip()
-                            if self._valid(email):
-                                return email
-                    emails2 = [e for e in _EMAIL_RE.findall(r2.text) if self._valid(e)]
-                    if emails2:
-                        return emails2[0]
-                except Exception:
-                    pass
-
-        except Exception:
-            pass
         return ""
 
-    # ── Helpers ────────────────────────────────────────────────────────────────
+    # ── Internal ────────────────────────────────────────────────────────────────
+
+    def _scan_url(self, url: str) -> str:
+        """Fetch url, parse HTML, return first valid email or ''."""
+        try:
+            resp = self._session.get(
+                url,
+                timeout=self.timeout,
+                allow_redirects=True,
+                stream=False,
+                verify=True,
+            )
+            # Do NOT raise_for_status -- many sites return 403/503 but still
+            # contain readable HTML with contact info in the body.
+            html = resp.text
+        except requests.exceptions.SSLError:
+            # Retry without SSL verification for sites with bad certs
+            try:
+                resp = self._session.get(
+                    url, timeout=self.timeout,
+                    allow_redirects=True, stream=False, verify=False,
+                )
+                html = resp.text
+            except Exception:
+                return ""
+        except Exception:
+            return ""
+
+        soup = BeautifulSoup(html, "html.parser")
+
+        # Priority 1: mailto: links -- most reliable
+        for a in soup.find_all("a", href=True):
+            href = a["href"]
+            if href.lower().startswith("mailto:"):
+                email = href[7:].split("?")[0].strip()
+                if self._valid(email):
+                    return email
+
+        # Priority 2: regex scan of raw HTML source
+        emails = [e for e in _EMAIL_RE.findall(html) if self._valid(e)]
+        if emails:
+            # Prefer emails whose domain matches the site domain
+            domain = urlparse(url).hostname or ""
+            domain = domain.lstrip("www.")
+            for e in emails:
+                if domain and domain in e:
+                    return e
+            return emails[0]
+
+        return ""
+
+    @staticmethod
+    def _base_url(url: str) -> str:
+        """Return scheme + netloc, e.g. 'https://example.com'."""
+        p = urlparse(url)
+        return "%s://%s" % (p.scheme or "https", p.netloc or p.path.split("/")[0])
+
     @staticmethod
     def _valid(email: str) -> bool:
         if not email or "@" not in email:
             return False
+        local, _, domain = email.partition("@")
+        if len(local) < 2 or "." not in domain:
+            return False
         return not any(skip in email.lower() for skip in _SKIP)
-
-    @staticmethod
-    def _find_contact_link(soup, base_url: str) -> str:
-        keywords = ["contact", "about", "get-in-touch", "reach-us"]
-        for a in soup.find_all("a", href=True):
-            text = a.get_text(strip=True).lower()
-            href = a["href"].lower()
-            if any(k in text or k in href for k in keywords):
-                return urljoin(base_url, a["href"])
-        return ""

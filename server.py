@@ -300,6 +300,13 @@ async def export_open() -> dict:
     return {"status": "ok", "path": str(out_path), "records": len(rows_snapshot)}
 
 
+# ── Results snapshot (lets the frontend rehydrate after a page refresh) ───────
+@app.get("/results")
+async def get_results() -> dict:
+    with _result_lock:
+        return {"results": list(_result_store)}
+
+
 # ── Excel export (streaming — kept for browser / dev usage) ───────────────────
 @app.get("/export")
 async def export_excel() -> StreamingResponse:

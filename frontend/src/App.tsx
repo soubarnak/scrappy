@@ -114,6 +114,19 @@ export default function App() {
     return () => { wsRef.current?.close(); };
   }, [connect]);
 
+  // ── Rehydrate results after a page refresh ────────────────────────────────
+  useEffect(() => {
+    fetch("/results")
+      .then(r => r.json())
+      .then((json: { results: ResultRow[] }) => {
+        if (json.results?.length > 0) {
+          setRows(json.results);
+          setStatus({ message: "Restored " + json.results.length + " results from session.", level: "info" });
+        }
+      })
+      .catch(() => { /* server not ready yet — ignore */ });
+  }, []);
+
   // ── Actions ───────────────────────────────────────────────────────────────
   const handleStart = useCallback(() => {
     const queryList = queries.split("\n").map(q => q.trim()).filter(Boolean);

@@ -102,26 +102,42 @@ if "!CHROMIUM_FOUND!"=="1" (
     echo            Without bundled Chromium, users need internet on first launch.
 )
 
-:: ── Download Microsoft Edge WebView2 bootstrapper ─────────────────────────────
+:: ── Download Microsoft Edge WebView2 Standalone Installer (fully offline) ─────
 ::
-::  The WebView2 Runtime is needed for the native desktop window (pywebview).
-::  It ships with Windows 11 and most Win10 machines that have Edge installed.
-::  We bundle the Microsoft bootstrapper (~1.5 MB) so the installer can silently
-::  install it on machines that don't have it yet.
+::  We bundle the FULL standalone installer (~170 MB) so end-user machines need
+::  NO internet connection during setup.  The installer runs silently and only
+::  installs WebView2 if it is not already present (registry check in the .iss).
+::
+::  Download strategy:
+::    1. Query the Microsoft Edge Enterprise API for the latest stable release URL.
+::    2. If the API call fails, fall back to the online bootstrapper (~1.5 MB).
 ::
 echo.
-echo  Downloading Microsoft Edge WebView2 bootstrapper (~1.5 MB)...
+echo  [5b] Downloading Microsoft Edge WebView2 Standalone Installer (~170 MB)...
+echo       (This is a one-time download — the file is cached in redist\)
 mkdir redist 2>nul
-if not exist "redist\MicrosoftEdgeWebview2Setup.exe" (
-    curl -L -s -o "redist\MicrosoftEdgeWebview2Setup.exe" ^
-        "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+if not exist "redist\MicrosoftEdgeWebView2RuntimeInstallerX64.exe" (
+    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+        "& { try { " ^
+        "  $api = Invoke-RestMethod 'https://edgeupdates.microsoft.com/api/products?view=enterprise'; " ^
+        "  $wv2 = $api | Where-Object { $_.Product -eq 'WebView2Runtime' }; " ^
+        "  $rel = ($wv2.Releases | Where-Object { $_.Platform -eq 'Windows' -and $_.Architecture -eq 'x64' })[0]; " ^
+        "  $art = ($rel.Artifacts | Where-Object { $_.ArtifactName -match 'standalone|exe' })[0]; " ^
+        "  if (-not $art) { throw 'Artifact not found' }; " ^
+        "  Write-Host ('  Version: ' + $rel.ProductVersion); " ^
+        "  Invoke-WebRequest $art.Location -OutFile 'redist\MicrosoftEdgeWebView2RuntimeInstallerX64.exe' -UseBasicParsing; " ^
+        "  Write-Host '  [OK] Standalone installer saved.' " ^
+        "} catch { " ^
+        "  Write-Warning ('API failed: ' + $_); " ^
+        "  Write-Host '  Falling back to online bootstrapper...'; " ^
+        "  Invoke-WebRequest 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile 'redist\MicrosoftEdgeWebView2RuntimeInstallerX64.exe' -UseBasicParsing; " ^
+        "  Write-Host '  [OK] Bootstrapper saved (requires internet on target machine).' " ^
+        "} }"
     if errorlevel 1 (
-        echo  [WARNING] WebView2 download failed. App will still work but may open in browser.
-    ) else (
-        echo  [OK] WebView2 bootstrapper saved to redist\
+        echo  [WARNING] WebView2 download failed. Rebuild and try again.
     )
 ) else (
-    echo  [OK] WebView2 bootstrapper already present.
+    echo  [OK] WebView2 installer already present in redist\ — skipping download.
 )
 
 echo.

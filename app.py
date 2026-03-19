@@ -107,60 +107,27 @@ def _show_error_and_exit(title: str, message: str) -> None:
 _wait_for_server()
 
 
-# ── Open pywebview native window (or fallback to browser) ─────────────────────
-def _open_browser_fallback() -> None:
+# ── Show a native error dialog and exit ───────────────────────────────────────
+def _show_webview_error(exc: Exception | None = None) -> None:
     """
-    pywebview is unavailable or its EdgeChromium backend failed.
-    Show a small tkinter window so the user can see the app is running
-    and open it in their browser with one click.
+    Called when pywebview/EdgeChromium cannot open.  Shows a clear, actionable
+    error dialog — no browser fallback.
     """
-    import webbrowser
-    webbrowser.open(URL)
-
-    try:
-        import tkinter as tk
-        from tkinter import font as tkfont
-
-        root = tk.Tk()
-        root.title("Scrappy — by Soubarna Karmakar")
-        root.resizable(False, False)
-        # Centre on screen
-        root.update_idletasks()
-        w, h = 380, 180
-        x = (root.winfo_screenwidth()  - w) // 2
-        y = (root.winfo_screenheight() - h) // 2
-        root.geometry(f"{w}x{h}+{x}+{y}")
-
-        bold = tkfont.Font(family="Segoe UI", size=11, weight="bold")
-        norm = tkfont.Font(family="Segoe UI", size=9)
-
-        tk.Label(root, text="Scrappy is running", font=bold, pady=12).pack()
-        tk.Label(root, text=URL, font=norm, fg="#1a6ed8", cursor="hand2").pack()
-        tk.Label(root, text="(opened in your default browser)", font=norm,
-                 fg="#666").pack(pady=4)
-
-        btn_frame = tk.Frame(root)
-        btn_frame.pack(pady=10)
-        tk.Button(btn_frame, text="Open in Browser",
-                  command=lambda: webbrowser.open(URL),
-                  width=16).pack(side="left", padx=6)
-        tk.Button(btn_frame, text="Quit",
-                  command=root.destroy,
-                  width=10).pack(side="left", padx=6)
-
-        root.mainloop()
-
-    except Exception:
-        # tkinter not available — just keep the server alive
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            pass
-
-    sys.exit(0)
+    detail = f"\n\nTechnical detail:\n{exc}" if exc else ""
+    message = (
+        "Scrappy requires Microsoft Edge WebView2 to display its window.\n\n"
+        "How to fix:\n"
+        "  1. Open Windows Update → Optional Updates and install any Edge updates, OR\n"
+        "  2. Download and run the WebView2 installer:\n"
+        "     go.microsoft.com/fwlink/p/?LinkId=2124703\n\n"
+        "After installing WebView2, launch Scrappy again."
+        + detail
+    )
+    print(f"\n[ERROR] WebView2 not available: {exc}", file=sys.stderr)
+    _show_error_and_exit("Window could not open", message)
 
 
+# ── Launch native pywebview window ────────────────────────────────────────────
 try:
     import webview                               # type: ignore[import]
 
@@ -177,12 +144,8 @@ try:
     # This does NOT require pythonnet or .NET SDK — works on Python 3.14+.
     webview.start(gui="edgechromium", debug=False)
 
-except ImportError:
-    # pywebview not installed — browser fallback
-    _open_browser_fallback()
+except ImportError as exc:
+    _show_webview_error(exc)
 
 except Exception as exc:
-    # edgechromium not available (older Windows / WebView2 not installed)
-    # Fall back to browser silently
-    print(f"[pywebview error] {exc} — falling back to browser", file=sys.stderr)
-    _open_browser_fallback()
+    _show_webview_error(exc)

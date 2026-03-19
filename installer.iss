@@ -7,7 +7,7 @@
 ;   - Scrappy executable + all Python packages (PyInstaller bundle)
 ;   - React frontend (pre-built, served by FastAPI)
 ;   - Playwright Chromium browser (copied by build_windows.bat)
-;   - Microsoft Edge WebView2 bootstrapper (for native desktop window)
+;   - Microsoft Edge WebView2 Standalone Installer (fully offline, ~170 MB)
 ;
 ; Author   : Soubarna Karmakar
 ; Requires : Inno Setup 6  https://jrsoftware.org/isdl.php
@@ -70,9 +70,10 @@ Source: "dist\Scrappy\*"; \
     DestDir: "{app}"; \
     Flags: ignoreversion recursesubdirs createallsubdirs
 
-; Edge WebView2 bootstrapper — run silently only if WebView2 is not installed.
-; Downloaded by build_windows.bat into redist\ (~1.5 MB).
-Source: "redist\MicrosoftEdgeWebview2Setup.exe"; \
+; Edge WebView2 Standalone Installer — fully offline, no internet needed on target machine.
+; Downloaded by build_windows.bat into redist\ (~170 MB).
+; Only extracted and run if WebView2 is not already installed (registry check below).
+Source: "redist\MicrosoftEdgeWebView2RuntimeInstallerX64.exe"; \
     DestDir: "{tmp}"; \
     Flags: deleteafterinstall; \
     Check: NeedsWebView2
@@ -86,8 +87,8 @@ Name: "{commondesktop}\{#AppName}";    Filename: "{app}\{#AppExe}"; Tasks: deskt
 ; ── [Run] ─────────────────────────────────────────────────────────────────────
 [Run]
 ; 1. Silently install Edge WebView2 Runtime if not already present.
-;    Enables the native desktop window (pywebview edgechromium backend).
-Filename: "{tmp}\MicrosoftEdgeWebview2Setup.exe"; \
+;    Uses the fully offline standalone installer — no internet required on target machine.
+Filename: "{tmp}\MicrosoftEdgeWebView2RuntimeInstallerX64.exe"; \
     Parameters: "/silent /install"; \
     StatusMsg: "Installing Microsoft Edge WebView2 Runtime..."; \
     Flags: waituntilterminated; \

@@ -82,14 +82,24 @@ class ScraperEngine:
             self._status("Launching browser...")
 
             with sync_playwright() as pw:
+                # When the user wants the browser hidden, we launch it visibly
+                # but move the window far off-screen instead of using headless=True.
+                # True headless mode exposes detectable fingerprints (missing plugins,
+                # navigator.headless, etc.) that Google Maps blocks.
+                extra_args = []
+                if self.headless:
+                    extra_args += [
+                        "--window-position=-32000,-32000",
+                        "--window-size=1366,768",
+                    ]
                 browser = pw.chromium.launch(
-                    headless=self.headless,
+                    headless=False,
                     args=[
                         "--no-sandbox",
                         "--disable-blink-features=AutomationControlled",
                         "--disable-notifications",
                         "--lang=en-US,en",
-                    ],
+                    ] + extra_args,
                 )
                 ctx = browser.new_context(
                     viewport={"width": 1366, "height": 768},

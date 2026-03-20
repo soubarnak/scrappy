@@ -1,8 +1,8 @@
-# 🗺 Google Maps Scraper
+# 🗺 Scrappy — Google Maps Scraper
 
 **Extract business data from Google Maps — no API key, no login, no limits.**
 
-> Built and maintained by **[Soubarna Karmakar](https://github.com/soubarna)**
+> Built and maintained by **[Soubarna Karmakar](https://github.com/soubarnak)**
 >
 > © 2025 Soubarna Karmakar. All rights reserved.
 
@@ -19,11 +19,11 @@
 | **Live results table** | See data appear in real time as it's scraped |
 | **Excel export** | Styled .xlsx with Summary sheet, auto-filter, freeze pane |
 | **Email extraction** | Optionally visits each website to find contact emails |
-| **Modern dark UI** | Clean CustomTkinter interface — dark theme, sortable table |
-| **Filter & copy** | Filter live, right-click to copy any field or row |
+| **Modern dark UI** | Clean React interface — dark/light theme, sortable table |
+| **Deduplication** | Automatically merges duplicate results across queries |
 
 ### Data extracted per business
-`Name` · `Address` · `Category` · `Phone` · `Website` · `Email` · `Query`
+`Name` · `Address` · `Category` · `Phone` · `Website` · `Email` · `Rating` · `Reviews` · `Query`
 
 ---
 
@@ -36,51 +36,14 @@
 
 ## 💾 Download & Install
 
-### Windows
+### Windows 10 / 11 (64-bit)
 
 1. Go to [**Releases**](../../releases/latest)
-2. Download `GoogleMapsScraper_Setup_v2.0.exe`
+2. Download `Scrappy_Setup_v2.0.exe`
 3. Run the installer — no admin rights required
 4. Launch from your Desktop or Start Menu
 
-> **First launch:** the app will automatically download the Chromium browser (~120 MB). An internet connection is required for this one-time step.
-
----
-
-### macOS
-
-1. Go to [**Releases**](../../releases/latest)
-2. Download `GoogleMapsScraper_v2.0_macOS.dmg`
-3. Open the DMG, drag **Google Maps Scraper** into **Applications**
-4. Double-click to launch
-
-> **Gatekeeper warning?** Right-click the app → **Open**, then click Open again.
-> Or run in Terminal: `xattr -d com.apple.quarantine /Applications/GoogleMapsScraper.app`
-
-> **First launch:** same as Windows — Chromium (~120 MB) is downloaded automatically.
-
----
-
-### Run from source (Windows / macOS / Linux)
-
-**Prerequisites:** Python 3.10+
-
-```bash
-# 1. Clone the repo
-git clone https://github.com/soubarnak/google-maps-scraper.git
-cd google-maps-scraper
-
-# 2. Install dependencies  (Windows: use install.bat instead)
-pip install -r requirements.txt
-python -m playwright install chromium
-
-# 3. Launch
-python scraper.py
-```
-
-On **Windows** you can also just double-click:
-- `install.bat` — first-time setup
-- `run.bat` — launch the app
+> Everything is bundled — no Python, Node.js, or internet connection required after install.
 
 ---
 
@@ -100,32 +63,33 @@ Chartered Accountants in Chennai
 
 | Setting | When to enable |
 |---|---|
-| **Run browser in background** | Faster; no visible browser window |
+| **Run browser in background** | Hides the browser window while scraping |
 | **Extract emails from websites** | Visits each website to find contact email (~8 s per place) |
+| **Phone numbers only** | Skip results that have no phone number |
+| **Deduplicate leads** | Merge duplicate Name + Phone entries across queries |
 
 ### Step 3 — Start scraping
 Click **▶ Start Scraping**. Results appear in the table in real time.
 
 ### Step 4 — Filter & review
 Use the **Filter** bar to search across all fields instantly.
-Click any column header to sort. Right-click a row for copy/delete options.
+Click any column header to sort.
 
 ### Step 5 — Export
-Click **📥 Export to Excel** to save a formatted `.xlsx` file with:
-- **Maps Data** sheet — all records, styled, with auto-filter
-- **Summary** sheet — timestamp, total count, per-query breakdown
+Click **📥 Export to Excel** to save a formatted `.xlsx` file that opens automatically in Excel:
+- **Scrappy Data** sheet — all records, styled, with auto-filter
+- **Summary** sheet — timestamp and total record count
 
 ---
 
 ## 📋 System Requirements
 
-| | Minimum |
+| | |
 |---|---|
-| **Windows** | Windows 10 / 11 (64-bit) |
-| **macOS** | macOS 10.14 Mojave or later |
-| **RAM** | 2 GB |
-| **Disk** | 500 MB free (Chromium ~300 MB + app ~150 MB) |
-| **Internet** | Required for scraping + one-time Chromium download |
+| **OS** | Windows 10 (version 1803+) or Windows 11, 64-bit |
+| **RAM** | 4 GB minimum (8 GB recommended for large queries) |
+| **Disk** | 500 MB free |
+| **Internet** | Required for scraping |
 
 ---
 
@@ -140,14 +104,8 @@ No. No API key, no billing, no rate limits.
 **Q: Will it get blocked?**
 The scraper uses stealth techniques to mimic a real user. For very large scrapes, consider enabling **background mode** and adding natural pauses between queries.
 
-**Q: Why is Chromium downloaded on first run?**
-Chromium is the browser that the scraper controls. It's downloaded once (~120 MB) and reused for all future scrapes.
-
 **Q: Email extraction is slow — why?**
 For each business, the scraper visits the website and scans it for email addresses. Each visit takes a few seconds. Disable this option if you only need the Google Maps data.
-
-**Q: Can I run this on Linux?**
-Yes, via the **run from source** method. No pre-built Linux binary is provided.
 
 ---
 
@@ -158,7 +116,7 @@ Found a bug or have a suggestion? Please open a GitHub Issue:
 - [🐛 Report a Bug](../../issues/new?template=bug_report.yml)
 - [💡 Request a Feature](../../issues/new?template=feature_request.yml)
 
-Please include your OS, Python version, and a description of what happened vs. what you expected.
+Please include your Windows version and a description of what happened vs. what you expected.
 
 ---
 

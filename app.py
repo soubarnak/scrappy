@@ -233,8 +233,14 @@ try:
     # This does NOT require pythonnet or .NET SDK — works on Python 3.14+.
     webview.start(gui="edgechromium", debug=False)
 
-except ImportError as exc:
-    _show_webview_error(exc)
-
-except Exception as exc:
+except (ImportError, Exception) as exc:
+    # Log the full traceback to a file so it's visible even with console=False
+    import tempfile, traceback as _tb
+    _log = os.path.join(tempfile.gettempdir(), "scrappy_webview_error.log")
+    try:
+        with open(_log, "w") as _f:
+            _f.write(f"pywebview error: {type(exc).__name__}: {exc}\n\n")
+            _tb.print_exc(file=_f)
+    except Exception:
+        pass
     _show_webview_error(exc)

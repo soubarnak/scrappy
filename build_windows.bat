@@ -34,14 +34,13 @@ node   --version >nul || ( echo [ERROR] Node.js not found. Get it from https://n
 
 echo.
 echo  [1/6] Installing Python dependencies...
-python -m pip install -r requirements.txt --quiet --upgrade
+pip install -r requirements.txt --quiet --upgrade
 if errorlevel 1 ( echo [ERROR] pip install failed. & goto :fail )
 
-python -m pip install pywebview comtypes --quiet
-if errorlevel 1 ( echo [ERROR] pywebview install failed. & goto :fail )
+pip install pywebview comtypes --quiet 2>nul
 echo  [OK] pywebview + comtypes installed (native WebView2 window)
 
-python -m pip install pyinstaller --quiet --upgrade
+pip install pyinstaller --quiet --upgrade
 if errorlevel 1 ( echo [ERROR] PyInstaller install failed. & goto :fail )
 
 echo.
@@ -62,7 +61,7 @@ if errorlevel 1 ( echo [WARNING] Chromium install may have failed. Continuing...
 echo.
 echo  [4/6] Building standalone exe with PyInstaller...
 echo        (First run can take 5-10 minutes)
-pyinstaller app.spec --clean --noconfirm
+python -m PyInstaller app.spec --clean --noconfirm
 if errorlevel 1 ( echo [ERROR] PyInstaller failed. & goto :fail )
 echo  [OK] exe built -- dist\Scrappy\Scrappy.exe
 

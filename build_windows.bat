@@ -34,13 +34,14 @@ node   --version >nul || ( echo [ERROR] Node.js not found. Get it from https://n
 
 echo.
 echo  [1/6] Installing Python dependencies...
-pip install -r requirements.txt --quiet --upgrade
+python -m pip install -r requirements.txt --quiet --upgrade
 if errorlevel 1 ( echo [ERROR] pip install failed. & goto :fail )
 
-pip install pywebview comtypes --quiet 2>nul
+python -m pip install pywebview comtypes --quiet
+if errorlevel 1 ( echo [ERROR] pywebview install failed. & goto :fail )
 echo  [OK] pywebview + comtypes installed (native WebView2 window)
 
-pip install pyinstaller --quiet --upgrade
+python -m pip install pyinstaller --quiet --upgrade
 if errorlevel 1 ( echo [ERROR] PyInstaller install failed. & goto :fail )
 
 echo.

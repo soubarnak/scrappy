@@ -12,19 +12,22 @@ ROOT = Path(SPECPATH)
 # ── Collect playwright browsers ───────────────────────────────────────────────
 from PyInstaller.utils.hooks import collect_all, collect_data_files
 
-pw_datas, pw_bins, pw_hiddens = collect_all("playwright")
+pw_datas,  pw_bins,  pw_hiddens  = collect_all("playwright")
+wv_datas,  wv_bins,  wv_hiddens  = collect_all("webview")
 
 block_cipher = None
 
 a = Analysis(
     [str(ROOT / "app.py")],
     pathex=[str(ROOT)],
-    binaries=pw_bins,
+    binaries=[*pw_bins, *wv_bins],
     datas=[
         # React build output → bundled as-is, served by FastAPI StaticFiles
         (str(ROOT / "frontend" / "dist"), "frontend/dist"),
         # Playwright data files (browsers, driver)
         *pw_datas,
+        # pywebview data files (JS bridges, icons, etc.)
+        *wv_datas,
     ],
     hiddenimports=[
         # FastAPI / Starlette
@@ -34,8 +37,10 @@ a = Analysis(
         "uvicorn.protocols.websockets.auto", "uvicorn.lifespan",
         "uvicorn.lifespan.on", "starlette", "starlette.staticfiles",
         "starlette.responses", "pydantic",
-        # pywebview
-        "webview", "webview.platforms.winforms",
+        # pywebview — collect_all handles platform modules; list key ones explicitly
+        "webview", "webview.platforms.edgechromium",
+        "webview.platforms.mshtml", "webview.platforms.winforms",
+        *wv_hiddens,
         # Playwright
         "playwright", "playwright.sync_api", *pw_hiddens,
         # openpyxl

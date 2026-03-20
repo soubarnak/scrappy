@@ -108,7 +108,7 @@ _wait_for_server()
 
 
 # ── Auto-install WebView2 then restart ────────────────────────────────────────
-def _try_install_webview2_and_restart() -> None:
+def _try_install_webview2_and_restart(exc: Exception | None = None) -> None:
     """
     Called when pywebview cannot find WebView2.
     1. Look for a bundled installer next to the exe (placed there by Inno Setup).
@@ -177,11 +177,25 @@ def _try_install_webview2_and_restart() -> None:
             )
             print(f"[WebView2] Installer exit code: {result.returncode}", file=sys.stderr)
 
-            if result.returncode in (0, 1603):   # 0 = ok, 1603 = already installed
-                # ── Step 4: Restart the app ───────────────────────────────────
-                print("[WebView2] Restarting Scrappy...", file=sys.stderr)
+            if result.returncode == 0:
+                # ── Step 4: WebView2 freshly installed — restart ───────────────
+                print("[WebView2] Installed. Restarting Scrappy...", file=sys.stderr)
                 os.execv(sys.executable, [sys.executable] + sys.argv)
                 # execv replaces the current process — code below is unreachable
+
+        if result.returncode == 1603:
+                # Already installed — WebView2 is not the problem.
+                # pywebview itself is failing (missing DLL, version mismatch, etc.)
+                _show_error_and_exit(
+                    "WebView2 is installed but could not be used",
+                    "Microsoft Edge WebView2 is already installed on this system,\n"
+                    "but Scrappy could not open its window.\n\n"
+                    "This is usually caused by a pywebview compatibility issue.\n"
+                    "Please contact support or report this at:\n"
+                    "  github.com/soubarnak/scrappy/issues\n\n"
+                    f"Technical detail: {exc}"
+                )
+                return
         except Exception as run_exc:
             print(f"[WebView2] Installer failed: {run_exc}", file=sys.stderr)
 
@@ -200,7 +214,7 @@ def _try_install_webview2_and_restart() -> None:
 def _show_webview_error(exc: Exception | None = None) -> None:
     """Called when pywebview/EdgeChromium cannot open."""
     print(f"\n[ERROR] WebView2 not available: {exc}", file=sys.stderr)
-    _try_install_webview2_and_restart()
+    _try_install_webview2_and_restart(exc)
 
 
 # ── Launch native pywebview window ────────────────────────────────────────────

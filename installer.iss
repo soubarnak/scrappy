@@ -91,7 +91,7 @@ Name: "{commondesktop}\{#AppName}";    Filename: "{app}\{#AppExe}"; Tasks: deskt
 Filename: "{tmp}\MicrosoftEdgeWebView2RuntimeInstallerX64.exe"; \
     Parameters: "/silent /install"; \
     StatusMsg: "Installing Microsoft Edge WebView2 Runtime..."; \
-    Flags: waituntilterminated ignoreerrors; \
+    Flags: waituntilterminated; \
     Check: NeedsWebView2
 
 ; 2. Offer to launch Scrappy right after install finishes.

@@ -29,15 +29,15 @@ echo  ============================================================
 echo.
 
 :: Pre-flight
-python --version >/dev/null 2>&1 || ( echo [ERROR] Python not found. Get it from https://python.org & goto :fail )
-node   --version >/dev/null 2>&1 || ( echo [ERROR] Node.js not found. Get it from https://nodejs.org  & goto :fail )
+python --version >nul || ( echo [ERROR] Python not found. Get it from https://python.org & goto :fail )
+node   --version >nul || ( echo [ERROR] Node.js not found. Get it from https://nodejs.org  & goto :fail )
 
 echo.
 echo  [1/6] Installing Python dependencies...
 pip install -r requirements.txt --quiet --upgrade
 if errorlevel 1 ( echo [ERROR] pip install failed. & goto :fail )
 
-pip install pywebview comtypes --quiet 2>/dev/null
+pip install pywebview comtypes --quiet 2>nul
 echo  [OK] pywebview + comtypes installed (native WebView2 window)
 
 pip install pyinstaller --quiet --upgrade
@@ -69,11 +69,11 @@ echo.
 echo  [5/6] Bundling Playwright Chromium into dist\...
 set "PW_CACHE=%LOCALAPPDATA%\ms-playwright"
 set "PW_DEST=dist\Scrappy\_playwright_browsers"
-mkdir "%PW_DEST%" 2>/dev/null
+mkdir "%PW_DEST%" 2>nul
 set "CHROMIUM_FOUND=0"
 for /d %%D in ("%PW_CACHE%\chromium-*") do (
     echo  Copying %%~nxD...
-    xcopy "%%D" "%PW_DEST%\%%~nxD\" /E /I /Q /Y >/dev/null
+    xcopy "%%D" "%PW_DEST%\%%~nxD\" /E /I /Q /Y >nul
     set "CHROMIUM_FOUND=1"
 )
 if "!CHROMIUM_FOUND!"=="1" (
@@ -87,7 +87,7 @@ if "!CHROMIUM_FOUND!"=="1" (
 echo.
 echo  [5b] Downloading WebView2 Standalone Installer (~170 MB)...
 echo       This is a one-time download cached in redist\
-mkdir redist 2>/dev/null
+mkdir redist 2>nul
 if not exist "redist\MicrosoftEdgeWebView2RuntimeInstallerX64.exe" (
     echo  Querying Microsoft Edge Enterprise API for latest version...
     powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop';try{$api=Invoke-RestMethod 'https://edgeupdates.microsoft.com/api/products?view=enterprise';$wv2=$api|Where-Object{$_.Product -eq 'WebView2Runtime'};$rel=($wv2.Releases|Where-Object{$_.Platform -eq 'Windows' -and $_.Architecture -eq 'x64'})[0];$art=($rel.Artifacts|Where-Object{$_.ArtifactName -match 'standalone|exe'})[0];if(-not $art){throw 'Artifact not found in API response'};Write-Host('  Version: '+$rel.ProductVersion);Invoke-WebRequest $art.Location -OutFile 'redist\MicrosoftEdgeWebView2RuntimeInstallerX64.exe' -UseBasicParsing;Write-Host '  [OK] Standalone installer saved to redist\'}catch{Write-Warning('API download failed: '+$_);Write-Host '  Falling back to online bootstrapper (end-users will need internet)...';Invoke-WebRequest 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile 'redist\MicrosoftEdgeWebView2RuntimeInstallerX64.exe' -UseBasicParsing;Write-Host '  [FALLBACK] Bootstrapper saved to redist\'}"
@@ -120,7 +120,7 @@ goto :no_iscc
 
 :found_iscc
 echo  [OK] Inno Setup found -- building installer...
-mkdir installer_output 2>/dev/null
+mkdir installer_output 2>nul
 "%ISCC%" installer.iss
 if errorlevel 1 (
     echo  [WARNING] Inno Setup build failed. The exe in dist\ is still usable.

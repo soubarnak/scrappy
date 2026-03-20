@@ -178,12 +178,11 @@ def _try_install_webview2_and_restart(exc: Exception | None = None) -> None:
             print(f"[WebView2] Installer exit code: {result.returncode}", file=sys.stderr)
 
             if result.returncode == 0:
-                # ── Step 4: WebView2 freshly installed — restart ───────────────
+                # WebView2 freshly installed — restart
                 print("[WebView2] Installed. Restarting Scrappy...", file=sys.stderr)
                 os.execv(sys.executable, [sys.executable] + sys.argv)
-                # execv replaces the current process — code below is unreachable
 
-        if result.returncode == 1603:
+            elif result.returncode == 1603:
                 # Already installed — WebView2 is not the problem.
                 # pywebview itself is failing (missing DLL, version mismatch, etc.)
                 _show_error_and_exit(

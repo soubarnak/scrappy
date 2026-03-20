@@ -91,7 +91,7 @@ Name: "{commondesktop}\{#AppName}";    Filename: "{app}\{#AppExe}"; Tasks: deskt
 Filename: "{tmp}\MicrosoftEdgeWebView2RuntimeInstallerX64.exe"; \
     Parameters: "/silent /install"; \
     StatusMsg: "Installing Microsoft Edge WebView2 Runtime..."; \
-    Flags: waituntilterminated; \
+    Flags: waituntilterminated ignoreerrors; \
     Check: NeedsWebView2
 
 ; 2. Offer to launch Scrappy right after install finishes.
@@ -107,32 +107,49 @@ Type: files; Name: "{app}\scrappy_*.xlsx"
 [Code]
 
 { Check whether Edge WebView2 Runtime is already installed.
-  WebView2 records its version in the registry at one of two paths. }
+  WebView2 can be registered at several different registry paths depending on
+  whether it was installed per-user, per-machine (32-bit view), or per-machine
+  (native 64-bit view, most common on Windows 10/11). We check all of them. }
 function IsWebView2Installed(): Boolean;
 var
   Version: String;
 begin
   Result := False;
 
-  { Per-user (HKCU) }
+  { 1. Per-user install (HKCU) }
   if RegQueryStringValue(HKCU,
       'Software\Microsoft\EdgeUpdate\ClientState\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
       'pv', Version) then
     if (Version <> '') and (Version <> '0.0.0.0') then
-    begin
-      Result := True;
-      Exit;
-    end;
+    begin Result := True; Exit; end;
 
-  { Machine-wide 32-bit view (HKLM) }
+  { 2. Machine-wide — native path (EdgeUpdate writes here on most Win10/11 machines) }
+  if RegQueryStringValue(HKLM,
+      'SOFTWARE\Microsoft\EdgeUpdate\ClientState\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
+      'pv', Version) then
+    if (Version <> '') and (Version <> '0.0.0.0') then
+    begin Result := True; Exit; end;
+
+  { 3. Machine-wide — explicit WOW6432Node path (32-bit installer view) }
   if RegQueryStringValue(HKLM,
       'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\ClientState\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
       'pv', Version) then
     if (Version <> '') and (Version <> '0.0.0.0') then
-    begin
-      Result := True;
-      Exit;
-    end;
+    begin Result := True; Exit; end;
+
+  { 4. Clients key instead of ClientState (some versions write here) }
+  if RegQueryStringValue(HKLM,
+      'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
+      'pv', Version) then
+    if (Version <> '') and (Version <> '0.0.0.0') then
+    begin Result := True; Exit; end;
+
+  { 5. WOW6432Node Clients fallback }
+  if RegQueryStringValue(HKLM,
+      'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
+      'pv', Version) then
+    if (Version <> '') and (Version <> '0.0.0.0') then
+    begin Result := True; Exit; end;
 end;
 
 { Returns True when the WebView2 installer should run }

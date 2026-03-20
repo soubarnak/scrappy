@@ -211,9 +211,21 @@ def _try_install_webview2_and_restart(exc: Exception | None = None) -> None:
 
 # ── Show a native error dialog and exit ───────────────────────────────────────
 def _show_webview_error(exc: Exception | None = None) -> None:
-    """Called when pywebview/EdgeChromium cannot open."""
-    print(f"\n[ERROR] WebView2 not available: {exc}", file=sys.stderr)
-    _try_install_webview2_and_restart(exc)
+    """Called when pywebview cannot open a window."""
+    print(f"\n[ERROR] pywebview failed: {exc}", file=sys.stderr)
+    if sys.platform == "win32":
+        _try_install_webview2_and_restart(exc)
+    else:
+        # Linux / macOS: show a clear message about missing system libraries
+        _pkg = "sudo apt install libwebkit2gtk-4.0-37 libgtk-3-0" \
+               if sys.platform == "linux" else "Install Xcode Command Line Tools"
+        _show_error_and_exit(
+            "Window could not open",
+            "Scrappy could not open its window.\n\n"
+            "Make sure the required system libraries are installed:\n"
+            f"  {_pkg}\n\n"
+            f"Technical detail: {exc}",
+        )
 
 
 # ── Launch native pywebview window ────────────────────────────────────────────
@@ -229,9 +241,14 @@ try:
         resizable   = True,
         text_select = True,
     )
-    # gui='edgechromium' uses Microsoft Edge WebView2 (built into Windows 10/11).
-    # This does NOT require pythonnet or .NET SDK — works on Python 3.14+.
-    webview.start(gui="edgechromium", debug=False)
+    # Select the GUI backend based on platform:
+    #   Windows → edgechromium (uses built-in Edge WebView2, no pythonnet needed)
+    #   Linux   → gtk          (uses WebKit2GTK, needs libwebkit2gtk on target)
+    #   macOS   → cocoa        (uses WKWebView, built into macOS)
+    _gui = "edgechromium" if sys.platform == "win32" else \
+           "cocoa"        if sys.platform == "darwin" else \
+           "gtk"
+    webview.start(gui=_gui, debug=False)
 
 except (ImportError, Exception) as exc:
     # Log the full traceback to a file so it's visible even with console=False

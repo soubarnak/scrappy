@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=2.0
+Type=Application
+Name=Scrappy
+Comment=Google Maps business data scraper by Soubarna Karmakar
+Exec=/opt/Scrappy/Scrappy
+Icon=/opt/Scrappy/assets/icon.png
+Terminal=false
+Categories=Office;Utility;
+StartupWMClass=Scrappy
+StartupNotify=true

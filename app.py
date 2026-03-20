@@ -107,24 +107,100 @@ def _show_error_and_exit(title: str, message: str) -> None:
 _wait_for_server()
 
 
+# ── Auto-install WebView2 then restart ────────────────────────────────────────
+def _try_install_webview2_and_restart() -> None:
+    """
+    Called when pywebview cannot find WebView2.
+    1. Look for a bundled installer next to the exe (placed there by Inno Setup).
+    2. If not found, download the ~1.5 MB bootstrapper from Microsoft.
+    3. Run it silently, then restart Scrappy.
+    4. If everything fails, show a clear manual-install dialog.
+    """
+    import os
+    import subprocess
+    import urllib.request
+    import tempfile
+
+    # ── Step 1: Look for bundled installer ────────────────────────────────────
+    exe_dir = (
+        os.path.dirname(sys.executable)
+        if getattr(sys, "frozen", False)
+        else os.path.dirname(os.path.abspath(__file__))
+    )
+    bundled = os.path.join(exe_dir, "MicrosoftEdgeWebView2RuntimeInstallerX64.exe")
+
+    installer_path: str | None = None
+
+    if os.path.isfile(bundled):
+        installer_path = bundled
+        print("[WebView2] Using bundled installer:", bundled, file=sys.stderr)
+
+    # ── Step 2: Download bootstrapper if no bundled file ──────────────────────
+    if installer_path is None:
+        try:
+            import tkinter as tk
+            from tkinter import messagebox
+            root = tk.Tk()
+            root.withdraw()
+            proceed = messagebox.askyesno(
+                "Scrappy — Install Required",
+                "Microsoft Edge WebView2 is required but not installed.\n\n"
+                "Scrappy will now download and install it automatically (~2 MB).\n"
+                "An internet connection is needed for this one-time step.\n\n"
+                "Click Yes to install now, or No to cancel.",
+            )
+            root.destroy()
+            if not proceed:
+                sys.exit(0)
+        except Exception:
+            pass   # no tkinter — proceed silently
+
+        try:
+            print("[WebView2] Downloading bootstrapper...", file=sys.stderr)
+            tmp_path = os.path.join(tempfile.gettempdir(), "MicrosoftEdgeWebView2Setup.exe")
+            urllib.request.urlretrieve(
+                "https://go.microsoft.com/fwlink/p/?LinkId=2124703",
+                tmp_path,
+            )
+            installer_path = tmp_path
+            print("[WebView2] Bootstrapper saved to:", tmp_path, file=sys.stderr)
+        except Exception as dl_exc:
+            print(f"[WebView2] Download failed: {dl_exc}", file=sys.stderr)
+
+    # ── Step 3: Run the installer silently ────────────────────────────────────
+    if installer_path and os.path.isfile(installer_path):
+        try:
+            print("[WebView2] Running installer silently...", file=sys.stderr)
+            result = subprocess.run(
+                [installer_path, "/silent", "/install"],
+                timeout=120,
+            )
+            print(f"[WebView2] Installer exit code: {result.returncode}", file=sys.stderr)
+
+            if result.returncode in (0, 1603):   # 0 = ok, 1603 = already installed
+                # ── Step 4: Restart the app ───────────────────────────────────
+                print("[WebView2] Restarting Scrappy...", file=sys.stderr)
+                os.execv(sys.executable, [sys.executable] + sys.argv)
+                # execv replaces the current process — code below is unreachable
+        except Exception as run_exc:
+            print(f"[WebView2] Installer failed: {run_exc}", file=sys.stderr)
+
+    # ── Step 5: All automatic steps failed — show manual instructions ─────────
+    _show_error_and_exit(
+        "WebView2 installation failed",
+        "Scrappy could not install Microsoft Edge WebView2 automatically.\n\n"
+        "Please install it manually:\n"
+        "  1. Open Windows Update → Optional Updates, OR\n"
+        "  2. Visit: aka.ms/webview2\n\n"
+        "After installing, launch Scrappy again.",
+    )
+
+
 # ── Show a native error dialog and exit ───────────────────────────────────────
 def _show_webview_error(exc: Exception | None = None) -> None:
-    """
-    Called when pywebview/EdgeChromium cannot open.  Shows a clear, actionable
-    error dialog — no browser fallback.
-    """
-    detail = f"\n\nTechnical detail:\n{exc}" if exc else ""
-    message = (
-        "Scrappy requires Microsoft Edge WebView2 to display its window.\n\n"
-        "How to fix:\n"
-        "  1. Open Windows Update → Optional Updates and install any Edge updates, OR\n"
-        "  2. Download and run the WebView2 installer:\n"
-        "     go.microsoft.com/fwlink/p/?LinkId=2124703\n\n"
-        "After installing WebView2, launch Scrappy again."
-        + detail
-    )
+    """Called when pywebview/EdgeChromium cannot open."""
     print(f"\n[ERROR] WebView2 not available: {exc}", file=sys.stderr)
-    _show_error_and_exit("Window could not open", message)
+    _try_install_webview2_and_restart()
 
 
 # ── Launch native pywebview window ────────────────────────────────────────────
